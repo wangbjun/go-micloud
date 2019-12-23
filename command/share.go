@@ -2,8 +2,12 @@ package command
 
 import (
 	"fmt"
+	"github.com/tidwall/gjson"
 	"github.com/urfave/cli/v2"
 	"go-micloud/api"
+	"io/ioutil"
+	"net/http"
+	"net/url"
 )
 
 func Share() *cli.Command {
@@ -25,11 +29,20 @@ func Share() *cli.Command {
 				}
 				downloadUrl, err := api.FileApi.GetFileDownLoadUrl(fileInfo.Id)
 				if err != nil {
-					fmt.Printf("===> [ %s ]获取失败！\n", fileName)
+					fmt.Printf("===> [ %s ]获取失败！Error: %s\n", fileName, err)
 					continue
 				}
-				fmt.Println("===> 获取链接成功(有效期24小时): ")
-				fmt.Println(downloadUrl)
+				var shortUrl = downloadUrl
+				resp, err := http.PostForm("http://t.wibliss.com/api/v1/create", url.Values{"url": []string{downloadUrl}})
+				if err == nil {
+					all, _ := ioutil.ReadAll(resp.Body)
+					dataUrl := gjson.Get(string(all), "data.url").String()
+					if dataUrl != "" {
+						shortUrl = dataUrl
+					}
+					resp.Body.Close()
+				}
+				fmt.Println("===> 获取分享链接成功(采用了短链接，有效期24小时): " + shortUrl)
 			}
 			return nil
 		},

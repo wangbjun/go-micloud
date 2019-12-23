@@ -6,13 +6,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/bitly/go-simplejson"
 	"github.com/tidwall/gjson"
 	"go-micloud/user"
 	"hash"
 	"io"
 	"io/ioutil"
-	"log"
 	"math"
 	"net/http"
 	"net/url"
@@ -36,7 +34,6 @@ type Api interface {
 	GetFile(string) ([]byte, error)
 	GetFileDownLoadUrl(string) (string, error)
 	UploadFile(string, string) (string, error)
-	DelFile(string) (bool, error)
 }
 
 type api struct {
@@ -89,39 +86,6 @@ func (api *api) GetFile(id string) ([]byte, error) {
 	}
 	all, err := ioutil.ReadAll(resp.Body)
 	return all, err
-}
-
-//删除文件
-func (api *api) DelFile(id string) (bool, error) {
-	apiUrl := fmt.Sprintf(DeleteFiles, id)
-
-	data := "{'content':{'permanent':false}}"
-	resp, err := api.user.HttpClient.PostForm(apiUrl, url.Values{
-		"data":         []string{data},
-		"serviceToken": []string{api.user.ServiceToken},
-	})
-	if err != nil {
-		log.Printf("delete files failed: %s\n", err.Error())
-		return false, nil
-	}
-	defer resp.Body.Close()
-
-	all, err := ioutil.ReadAll(resp.Body)
-	result, err := simplejson.NewJson(all)
-	if err != nil {
-		log.Printf("delete files failed: %s\n", err.Error())
-		return false, nil
-	}
-	code, err := result.Get("code").Int()
-	if err != nil {
-		log.Printf("delete files failed: %s\n", err.Error())
-		return false, nil
-	}
-	if code == 0 {
-		return true, nil
-	} else {
-		return false, err
-	}
 }
 
 //上传文件

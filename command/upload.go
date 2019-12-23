@@ -31,8 +31,7 @@ func Upload() *cli.Command {
 				fmt.Printf("===> [ %s ]开始上传！\n", fileName)
 				_, err = api.FileApi.UploadFile(fileName, DirList[len(DirList)-1])
 				if err != nil {
-					panic(err)
-					fmt.Printf("===> [ %s ]上传失败！\n", fileName)
+					fmt.Printf("===> [ %s ]上传失败！Error: %s\n", fileName, err)
 				} else {
 					fmt.Printf("===> [ %s ]上传成功！\n", fileName)
 				}
