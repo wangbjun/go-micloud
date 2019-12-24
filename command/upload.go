@@ -5,6 +5,7 @@ import (
 	"github.com/urfave/cli/v2"
 	"go-micloud/api"
 	"os"
+	"strings"
 )
 
 func Upload() *cli.Command {
@@ -15,6 +16,7 @@ func Upload() *cli.Command {
 			var args = context.Args()
 			for i := 0; i < args.Len(); i++ {
 				fileName := args.Get(i)
+				fileName = strings.ReplaceAll(fileName, "\\s", " ")
 				fileInfo, err := os.Stat(fileName)
 				if os.IsPermission(err) {
 					fmt.Printf("===> 没有访问权限：%s\n", fileName)

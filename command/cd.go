@@ -27,12 +27,14 @@ func Cd() *cli.Command {
 				}
 				return nil
 			}
+			dir = strings.ReplaceAll(dir, "\\s", " ")
 			file, ok := FileMap[dir]
 			if !ok || file.Type != "folder" {
 				return errors.New("目录不存在")
 			}
 			DirList = append(DirList, file.Id)
 			line.CsLiner.AppendDir(file.Name)
+			_ = List().Run(context)
 			return nil
 		},
 	}

@@ -1,6 +1,7 @@
 package command
 
 import (
+	"errors"
 	"fmt"
 	"github.com/tidwall/gjson"
 	"github.com/urfave/cli/v2"
@@ -41,6 +42,9 @@ func Share() *cli.Command {
 						shortUrl = dataUrl
 					}
 					resp.Body.Close()
+				}
+				if len(shortUrl) > 8182 {
+					return errors.New("该文件生成的分享链接过长，分享不可用！")
 				}
 				fmt.Println("===> 获取分享链接成功(采用了短链接，有效期24小时): " + shortUrl)
 			}

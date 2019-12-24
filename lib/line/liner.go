@@ -2,6 +2,8 @@ package line
 
 import (
 	"github.com/peterh/liner"
+	"io/ioutil"
+	"path"
 	"strings"
 )
 
@@ -58,9 +60,26 @@ func (l *Liner) SetWorldCompleter(words []string) {
 			command = line[:spaceIndex]
 		}
 		var candidates []string
-		for _, k := range words {
-			if strings.HasPrefix(k, prefix) {
-				candidates = append(candidates, " "+k)
+		if strings.HasPrefix(prefix, "/") {
+			dir := path.Dir(prefix)
+			prefix = prefix[strings.LastIndex(prefix, "/")+1:]
+			infos, _ := ioutil.ReadDir(strings.ReplaceAll(dir, "\\s", " "))
+			for _, v := range infos {
+				if strings.HasPrefix(v.Name(), prefix) {
+					name := strings.ReplaceAll(v.Name(), " ", "\\s")
+					candidate := " " + dir + "/" + name
+					if dir == "/" {
+						candidate = " /" + name
+					}
+					candidates = append(candidates, candidate)
+				}
+			}
+		} else {
+			for _, k := range words {
+				if strings.HasPrefix(k, prefix) {
+					k = strings.ReplaceAll(k, " ", "\\s")
+					candidates = append(candidates, " "+k)
+				}
 			}
 		}
 		return command, candidates, ""
