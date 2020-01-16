@@ -19,23 +19,23 @@ func Upload() *cli.Command {
 				fileName = strings.ReplaceAll(fileName, "\\s", " ")
 				fileInfo, err := os.Stat(fileName)
 				if os.IsPermission(err) {
-					fmt.Printf("===> 没有访问权限：%s\n", fileName)
+					fmt.Println("===> 没有访问权限！")
 					continue
 				}
 				if os.IsNotExist(err) {
-					fmt.Printf("===> 文件不存在：%s\n", fileName)
+					fmt.Println("===> 文件不存在！")
 					continue
 				}
 				if fileInfo.IsDir() {
-					fmt.Printf("===> 目前不支持上传文件夹：%s\n", fileName)
+					fmt.Println("===> 目前不支持上传文件夹！")
 					continue
 				}
-				fmt.Printf("===> [ %s ]开始上传！\n", fileName)
+				fmt.Println("===> 开始上传！")
 				_, err = api.FileApi.UploadFile(fileName, DirList[len(DirList)-1])
 				if err != nil {
-					fmt.Printf("===> [ %s ]上传失败！Error: %s\n", fileName, err)
+					fmt.Printf("===> 上传失败！Error: %s\n", err)
 				} else {
-					fmt.Printf("===> [ %s ]上传成功！\n", fileName)
+					fmt.Println("===> 上传成功！")
 				}
 			}
 			return nil

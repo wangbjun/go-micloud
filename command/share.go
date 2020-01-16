@@ -21,16 +21,16 @@ func Share() *cli.Command {
 				fileName := args.Get(i)
 				fileInfo, ok := FileMap[fileName]
 				if !ok {
-					fmt.Printf("===> 当前目录不存在该文件：%s\n", fileName)
+					fmt.Printf("===> 当前目录不存在该文件！\n")
 					continue
 				}
 				if fileInfo.Type == "folder" {
-					fmt.Printf("===> 目前不支持分享文件夹：%s\n", fileName)
+					fmt.Printf("===> 目前不支持分享文件夹！\n")
 					continue
 				}
 				downloadUrl, err := api.FileApi.GetFileDownLoadUrl(fileInfo.Id)
 				if err != nil {
-					fmt.Printf("===> [ %s ]获取失败！Error: %s\n", fileName, err)
+					fmt.Printf("===> 获取失败！Error: %s\n", err)
 					continue
 				}
 				var shortUrl = downloadUrl

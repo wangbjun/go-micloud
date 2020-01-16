@@ -468,12 +468,11 @@ func (u *User) updateCookies(domain string, newCookies []*http.Cookie) {
 		// 更新配置文件
 		if c.Name == "userId" && c.Value != u.UserId {
 			config.Conf.Section("XIAOMI").Key("USER_ID").SetValue(c.Value)
-			go config.SaveToFile()
 		}
 		if c.Name == "serviceToken" && c.Value != u.ServiceToken {
 			config.Conf.Section("XIAOMI").Key("SERVICE_TOKEN").SetValue(c.Value)
-			go config.SaveToFile()
 		}
+		go config.SaveToFile()
 	}
 	jar.SetCookies(parseUrl, validCookies)
 	u.HttpClient.Jar = jar
