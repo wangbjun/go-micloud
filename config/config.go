@@ -8,21 +8,42 @@ import (
 
 var Conf *ini.File
 
-var EnvFile = "app.ini"
+const configTpl = `[XIAOMI]
+USER_ID =
+
+SERVICE_TOKEN =
+
+WORK_DIR =
+
+DEVICE_ID =
+
+[XIAOMI_ACCOUNT]
+USERNAME =
+
+PASSWORD =
+
+[APP]
+LOG_FILE = log/app.log
+`
+
+var EnvFile = ".config/short.ini"
 
 var WorkDir = ""
 
 func init() {
-	// 读取配置文件, 解决跑测试的时候找不到配置文件的问题，最多往上找5层目录
-	for i := 0; i < 5; i++ {
-		if _, err := os.Stat(EnvFile); err == nil {
-			break
-		} else {
-			EnvFile = "../" + EnvFile
-		}
+	userHomeDir, err := os.UserHomeDir()
+	if err != nil {
+		log.Panicf("get userHomeDir failed, err: %s", err.Error())
 	}
+	EnvFile = userHomeDir + "/" + EnvFile
 	if _, err := os.Stat(EnvFile); os.IsNotExist(err) {
-		log.Panicf("conf file [%s]  not found!", EnvFile)
+		file, _ := os.Create(EnvFile)
+		_, err := file.WriteString(configTpl)
+		_ = file.Sync()
+		file.Close()
+		if err != nil {
+			log.Panicf("init config file failed, err: %s", err.Error())
+		}
 	}
 	conf, err := ini.Load(EnvFile)
 	if err != nil {

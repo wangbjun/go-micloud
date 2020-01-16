@@ -495,4 +495,5 @@ func saveAccount(username, password string) {
 		[]byte("inqH0kEHFvSKqPkR"), []byte("1234567891234500"))
 
 	account.Key("PASSWORD").SetValue(secretPwd)
+	go config.SaveToFile()
 }
