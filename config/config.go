@@ -23,7 +23,7 @@ USERNAME =
 PASSWORD =
 
 [APP]
-LOG_FILE = log/app.log
+LOG_FILE = /tmp/short.log
 `
 
 var EnvFile = ".config/short.ini"

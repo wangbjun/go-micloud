@@ -11,6 +11,7 @@ import (
 	"github.com/thinkoner/openssl"
 	"hash"
 	"io"
+	"os"
 	"strconv"
 	"time"
 )
@@ -95,6 +96,7 @@ func GetInput(msg string) string {
 	commandLine, err := newLiner.Prompt(prompt)
 	if err != nil {
 		fmt.Printf("Prompt Error: %s\n", err)
+		os.Exit(-1)
 	}
 	return commandLine
 }
@@ -108,6 +110,7 @@ func GetInputPwd(msg string) string {
 	commandLine, err := newLiner.PasswordPrompt(prompt)
 	if err != nil {
 		fmt.Printf("Prompt Error: %s\n", err)
+		os.Exit(-1)
 	}
 	return commandLine
 }
