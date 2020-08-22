@@ -20,6 +20,7 @@ func Share() *cli.Command {
 			var args = context.Args()
 			for i := 0; i < args.Len(); i++ {
 				fileName := args.Get(i)
+				fileName = strings.ReplaceAll(fileName, "\\s", " ")
 				fileInfo, ok := FileMap[fileName]
 				if !ok {
 					fmt.Printf("===> 当前目录不存在该文件！\n")
