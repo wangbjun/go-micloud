@@ -1,14 +1,15 @@
 package command
 
 import (
-	"errors"
 	"fmt"
 	"github.com/tidwall/gjson"
 	"github.com/urfave/cli/v2"
 	"go-micloud/api"
+	"go-micloud/lib/zlog"
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"strings"
 )
 
 func Share() *cli.Command {
@@ -43,10 +44,13 @@ func Share() *cli.Command {
 					}
 					resp.Body.Close()
 				}
-				if len(shortUrl) > 8182 {
-					return errors.New("该文件生成的分享链接过长，分享不可用！")
-				}
-				fmt.Println("===> 获取分享链接成功(采用了短链接，有效期24小时): " + shortUrl)
+				zlog.Logger.Info(shortUrl)
+
+				i := strings.LastIndex(shortUrl, "/")
+
+				shortUrl = shortUrl[:i] + "?t=" + shortUrl[i+1:]
+
+				fmt.Println("===> 获取分享链接成功,点击链接跳转到下载页面，请注意浏览器弹框！(有效期24小时): " + shortUrl)
 			}
 			return nil
 		},

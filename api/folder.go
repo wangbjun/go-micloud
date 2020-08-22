@@ -13,7 +13,7 @@ const (
 	DeleteFolder = BaseUri + "/drive/user/folders/%s/delete"
 )
 
-var ErrorNotLogin = errors.New("未登录")
+var ErrorNotLogin = errors.New("请登录,命令: login")
 
 // 获取目录下的文件
 func (api *api) GetFolder(id string) ([]*File, error) {

@@ -50,7 +50,7 @@ func NewApi(user *user.User) Api {
 
 //获取文件公开下载链接
 func (api *api) GetFileDownLoadUrl(id string) (string, error) {
-	var apiUrl = strings.Trim(fmt.Sprintf(GetFiles, id), "?jsonpCallback=callback")
+	var apiUrl = fmt.Sprintf(GetFiles, id)
 	resp, err := api.user.HttpClient.Get(apiUrl)
 	if err != nil {
 		return "", err
@@ -59,7 +59,16 @@ func (api *api) GetFileDownLoadUrl(id string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return gjson.Get(string(all), "data.storage.downloadUrl").String(), nil
+	realUrlStr := gjson.Get(string(all), "data.storage.jsonpUrl").String()
+	if realUrlStr == "" {
+		return "", errors.New("get fileUrl failed")
+	}
+	result, err := api.get(realUrlStr)
+	if err != nil {
+		return "", err
+	}
+	realUrl := gjson.Parse(strings.Trim(string(result), "callback()"))
+	return realUrl.String(), nil
 }
 
 //获取文件
