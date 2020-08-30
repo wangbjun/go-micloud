@@ -1,18 +1,18 @@
 package command
 
 import (
+	"errors"
 	"fmt"
 	"github.com/tidwall/gjson"
 	"github.com/urfave/cli/v2"
-	"go-micloud/api"
-	"go-micloud/lib/zlog"
+	"go-micloud/pkg/zlog"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
 )
 
-func Share() *cli.Command {
+func (r *Command) Share() *cli.Command {
 	return &cli.Command{
 		Name:  "share",
 		Usage: "Get public share url",
@@ -23,17 +23,14 @@ func Share() *cli.Command {
 				fileName = strings.ReplaceAll(fileName, "\\s", " ")
 				fileInfo, ok := FileMap[fileName]
 				if !ok {
-					fmt.Printf("===> 当前目录不存在该文件！\n")
-					continue
+					return errors.New("当前目录不存在该文件")
 				}
 				if fileInfo.Type == "folder" {
-					fmt.Printf("===> 目前不支持分享文件夹！\n")
-					continue
+					return errors.New("目前不支持分享文件夹")
 				}
-				downloadUrl, err := api.FileApi.GetFileDownLoadUrl(fileInfo.Id)
+				downloadUrl, err := r.HttpApi.GetFileDownLoadUrl(fileInfo.Id)
 				if err != nil {
-					fmt.Printf("===> 获取失败！Error: %s\n", err)
-					continue
+					return errors.New(fmt.Sprintf("获取下载地址失败：%s", err.Error()))
 				}
 				var shortUrl = downloadUrl
 				resp, err := http.PostForm("http://t.wibliss.com/api/v1/create", url.Values{"url": []string{downloadUrl}})
@@ -51,7 +48,7 @@ func Share() *cli.Command {
 
 				shortUrl = shortUrl[:i] + "?t=" + shortUrl[i+1:]
 
-				fmt.Println("===> 获取分享链接成功,点击链接跳转到下载页面，请注意浏览器弹框！(有效期24小时): " + shortUrl)
+				zlog.Info(fmt.Sprintf("获取分享成功,有效期24小时，复制链接( %s )到浏览器里面打开下载,请注意浏览器弹框！", shortUrl))
 			}
 			return nil
 		},

@@ -13,10 +13,8 @@ const (
 	DeleteFolder = BaseUri + "/drive/user/folders/%s/delete"
 )
 
-var ErrorNotLogin = errors.New("请登录,命令: login")
-
 // 获取目录下的文件
-func (api *api) GetFolder(id string) ([]*File, error) {
+func (api *Api) GetFolder(id string) ([]*File, error) {
 	apiUrl := fmt.Sprintf(GetFolders, id)
 	result, err := api.get(apiUrl)
 	if err != nil {
@@ -31,8 +29,8 @@ func (api *api) GetFolder(id string) ([]*File, error) {
 		return msg.Data.List, nil
 	} else {
 		if gjson.Get(string(result), "R").Int() == 401 {
-			return nil, ErrorNotLogin
+			return nil, errors.New("登录授权失败")
 		}
-		return nil, errors.New("get folders failed")
+		return nil, errors.New("获取文件夹下文件失败")
 	}
 }

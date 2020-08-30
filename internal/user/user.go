@@ -5,9 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"github.com/tidwall/gjson"
-	"go-micloud/config"
-	"go-micloud/lib/function"
-	"go-micloud/lib/zlog"
+	"go-micloud/configs"
+	"go-micloud/pkg/function"
+	"go-micloud/pkg/zlog"
 	"io/ioutil"
 	"net/http"
 	"net/http/cookiejar"
@@ -31,33 +31,14 @@ const (
 type User struct {
 	HttpClient   *http.Client
 	IsLogin      bool
+	UserName     string
 	UserId       string
 	ServiceToken string
 }
 
-var Account *User
-
-func init() {
-	Account = NewUser()
-	go func() {
-		ticker := time.NewTicker(time.Second * 30)
-		for {
-			select {
-			case <-ticker.C:
-				if Account.IsLogin {
-					err := Account.autoRenewal()
-					if err != nil {
-						fmt.Printf("autoRenewal error: %s", err)
-					}
-				}
-			}
-		}
-	}()
-}
-
 func NewUser() *User {
 	var jar, _ = cookiejar.New(nil)
-	return &User{
+	user := User{
 		HttpClient: &http.Client{
 			CheckRedirect: func(req *http.Request, via []*http.Request) error {
 				return http.ErrUseLastResponse
@@ -66,30 +47,41 @@ func NewUser() *User {
 			Jar:       jar,
 		},
 	}
+	go user.autoRenewal()
+	return &user
 }
 
-func (u *User) autoRenewal() error {
-	var apiUrl = fmt.Sprintf(autoRenewal, strconv.Itoa(int(time.Now().UnixNano()))[0:13])
-	resp, err := u.HttpClient.Get(apiUrl)
-	if err != nil {
-		return err
+func (u *User) autoRenewal() {
+	ticker := time.NewTicker(time.Second * 30)
+	for {
+		select {
+		case <-ticker.C:
+			if u.IsLogin {
+				var apiUrl = fmt.Sprintf(autoRenewal, strconv.Itoa(int(time.Now().UnixNano()))[0:13])
+				resp, err := u.HttpClient.Get(apiUrl)
+				if err != nil {
+					zlog.Logger.Sugar().Errorf("auto_renewal error: %s", err.Error())
+					return
+				}
+				if len(resp.Cookies()) > 0 {
+					u.updateCookies(imi, resp.Cookies())
+				}
+			}
+		}
 	}
-	if len(resp.Cookies()) > 0 {
-		u.updateCookies(imi, resp.Cookies())
-	}
-	return nil
 }
 
-// 手动录入cookies登录
-func (u *User) LoginManual() error {
+// 尝试使用保存的Token自动登录
+func (u *User) AutoLogin() error {
 	jar, err := cookiejar.New(nil)
 	if err != nil {
 		return err
 	}
 	var cookies []*http.Cookie
 	var (
-		cServiceToken = config.Conf.Section("XIAOMI").Key("SERVICE_TOKEN").String()
-		cUserId       = config.Conf.Section("XIAOMI").Key("USER_ID").String()
+		cServiceToken = configs.Conf.Section("XIAOMI").Key("SERVICE_TOKEN").String()
+		cUserId       = configs.Conf.Section("XIAOMI").Key("USER_ID").String()
+		cUserName     = configs.Conf.Section("XIAOMI_ACCOUNT").Key("USERNAME").String()
 	)
 	serviceToken := &http.Cookie{
 		Name:   "serviceToken",
@@ -118,6 +110,7 @@ func (u *User) LoginManual() error {
 	}
 	if result == "" {
 		u.UserId = cUserId
+		u.UserName = cUserName
 		u.ServiceToken = cServiceToken
 		u.IsLogin = true
 		return nil
@@ -126,17 +119,18 @@ func (u *User) LoginManual() error {
 	}
 }
 
+// 输入账号密码登录
 func (u *User) Login(input bool) error {
 	var username string
 	var password string
-	var account = config.Conf.Section("XIAOMI_ACCOUNT")
+	var account = configs.Conf.Section("XIAOMI_ACCOUNT")
 	for {
 		if account.Key("USERNAME").String() != "" && !input {
 			username = account.Key("USERNAME").String()
 		} else {
 			username = function.GetInput("账号")
 			if username == "" {
-				fmt.Println("===> 账号不能为空")
+				zlog.Error("账号不能为空")
 				continue
 			}
 		}
@@ -148,7 +142,7 @@ func (u *User) Login(input bool) error {
 		} else {
 			password = function.GetInputPwd("密码")
 			if len(password) < 6 {
-				fmt.Println("===> 密码不能少于6位")
+				zlog.Error("密码不能少于6位")
 				goto PASS
 			}
 		}
@@ -187,12 +181,14 @@ func (u *User) Login(input bool) error {
 	}
 	if result == "" {
 		u.IsLogin = true
+		u.UserName = username
 		return nil
 	}
 	err = u.SendPhoneCode(result)
 	if err == ErrorNotNeedSms {
 		u.IsLogin = true
-		fmt.Println("===> 登录成功！")
+		u.UserName = username
+		zlog.Info("登录成功！")
 		go saveAccount(username, password)
 		return nil
 	} else {
@@ -209,7 +205,8 @@ func (u *User) Login(input bool) error {
 		}
 		if result == "" {
 			u.IsLogin = true
-			fmt.Println("===> 登录成功！")
+			u.UserName = username
+			zlog.Info("登录成功！")
 			go saveAccount(username, password)
 			return nil
 		} else {
@@ -224,7 +221,7 @@ func (u *User) serviceLogin() error {
 		return err
 	}
 	var (
-		deviceId = config.Conf.Section("XIAOMI").Key("DEVICE_ID").String()
+		deviceId = configs.Conf.Section("XIAOMI").Key("DEVICE_ID").String()
 	)
 	if deviceId != "" {
 		var cookies []*http.Cookie
@@ -467,19 +464,19 @@ func (u *User) updateCookies(domain string, newCookies []*http.Cookie) {
 		}
 		// 更新配置文件
 		if c.Name == "userId" && c.Value != u.UserId {
-			config.Conf.Section("XIAOMI").Key("USER_ID").SetValue(c.Value)
+			configs.Conf.Section("XIAOMI").Key("USER_ID").SetValue(c.Value)
 		}
 		if c.Name == "serviceToken" && c.Value != u.ServiceToken {
-			config.Conf.Section("XIAOMI").Key("SERVICE_TOKEN").SetValue(c.Value)
+			configs.Conf.Section("XIAOMI").Key("SERVICE_TOKEN").SetValue(c.Value)
 		}
-		go config.SaveToFile()
+		go configs.SaveToFile()
 	}
 	jar.SetCookies(parseUrl, validCookies)
 	u.HttpClient.Jar = jar
 }
 
 func saveDeviceId(v *http.Cookie) {
-	deviceKey := config.Conf.Section("XIAOMI").Key("DEVICE_ID")
+	deviceKey := configs.Conf.Section("XIAOMI").Key("DEVICE_ID")
 	deviceId := deviceKey.String()
 	if deviceId == "" {
 		deviceKey.SetValue(v.Value)
@@ -487,12 +484,12 @@ func saveDeviceId(v *http.Cookie) {
 }
 
 func saveAccount(username, password string) {
-	account := config.Conf.Section("XIAOMI_ACCOUNT")
+	account := configs.Conf.Section("XIAOMI_ACCOUNT")
 	account.Key("USERNAME").SetValue(username)
 
 	secretPwd, _ := function.AesCBCEncrypt([]byte(password),
 		[]byte("inqH0kEHFvSKqPkR"), []byte("1234567891234500"))
 
 	account.Key("PASSWORD").SetValue(secretPwd)
-	go config.SaveToFile()
+	go configs.SaveToFile()
 }

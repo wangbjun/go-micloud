@@ -8,14 +8,13 @@ import (
 	"strings"
 )
 
-const base = "Go@MiCloud:~"
+const base = "Go@MiCloud:"
 
-var CsLiner = Liner{liner.NewLiner(), base, 0}
+var CsLiner = Liner{liner.NewLiner(), base}
 
 type Liner struct {
 	state  *liner.State
 	prefix string
-	n      int
 }
 
 func init() {
@@ -34,19 +33,8 @@ func (l *Liner) AppendHistory(item string) {
 	l.state.AppendHistory(item)
 }
 
-func (l *Liner) AppendDir(dir string) {
-	l.prefix = l.prefix + "/" + dir
-	l.n++
-}
-
-func (l *Liner) RemoveDir(n int) {
-	if n >= l.n || n == -1 {
-		l.prefix = base
-	} else {
-		for i := 0; i < n; i++ {
-			l.prefix = l.prefix[:strings.LastIndex(l.prefix, "/")]
-		}
-	}
+func (l *Liner) SetUpPrefix(path string) {
+	l.prefix = base + path
 }
 
 func (l *Liner) SetWorldCompleter(words []string) {
@@ -73,7 +61,7 @@ func (l *Liner) SetWorldCompleter(words []string) {
 			}
 			infos, _ := ioutil.ReadDir(dir)
 			for _, v := range infos {
-				if strings.HasPrefix(v.Name(), prefix) {
+				if strings.HasPrefix(strings.ToLower(v.Name()), strings.ToLower(prefix)) {
 					name := strings.ReplaceAll(v.Name(), " ", "\\s")
 					candidate := " " + dir + "/" + name
 					if dir == "/" {
@@ -84,7 +72,7 @@ func (l *Liner) SetWorldCompleter(words []string) {
 			}
 		} else {
 			for _, k := range words {
-				if strings.HasPrefix(k, prefix) {
+				if strings.HasPrefix(strings.ToLower(k), strings.ToLower(prefix)) {
 					k = strings.ReplaceAll(k, " ", "\\s")
 					candidates = append(candidates, " "+k)
 				}

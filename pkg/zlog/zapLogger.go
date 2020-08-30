@@ -1,7 +1,7 @@
 package zlog
 
 import (
-	"go-micloud/config"
+	"go-micloud/configs"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/natefinch/lumberjack.v2"
@@ -13,7 +13,7 @@ func init() {
 	infoLevel := zap.LevelEnablerFunc(func(lvl zapcore.Level) bool {
 		return lvl >= zapcore.InfoLevel
 	})
-	logFile := config.Conf.Section("APP").Key("LOG_FILE").String()
+	logFile := configs.Conf.Section("APP").Key("LOG_FILE").String()
 	writer := zapcore.AddSync(&lumberjack.Logger{
 		Filename:   logFile,
 		MaxSize:    500, // megabytes

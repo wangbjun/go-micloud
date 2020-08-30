@@ -91,7 +91,7 @@ func GetUuidV4() string {
 func GetInput(msg string) string {
 	var newLiner = liner.NewLiner()
 	defer newLiner.Close()
-	msg = "===> 请输入" + msg + "："
+	msg = "请输入" + msg + "："
 	var prompt = "Go@MiCloud:~$ " + msg
 	commandLine, err := newLiner.Prompt(prompt)
 	if err != nil {
@@ -105,7 +105,7 @@ func GetInput(msg string) string {
 func GetInputPwd(msg string) string {
 	var newLiner = liner.NewLiner()
 	defer newLiner.Close()
-	msg = "===> 请输入" + msg + "："
+	msg = "请输入" + msg + "："
 	var prompt = "Go@MiCloud:~$ " + msg
 	commandLine, err := newLiner.PasswordPrompt(prompt)
 	if err != nil {

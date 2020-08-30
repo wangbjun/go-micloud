@@ -68,8 +68,8 @@ download <file...>
 
 ```
 Go@MiCloud:~$ download Postman-linux-x64-7.1.1.tar.gz
-===> [ Postman-linux-x64-7.1.1.tar.gz ]开始下载！
-===> [ Postman-linux-x64-7.1.1.tar.gz ]下载成功！
+[ Postman-linux-x64-7.1.1.tar.gz ]开始下载！
+[ Postman-linux-x64-7.1.1.tar.gz ]下载成功！
 ```
 
 下载文件的存放位置，默认是当前工具的运行目录，如需配置，可以在**app.ini**里面配置**WORK_DIR**项
@@ -108,7 +108,7 @@ d | ------ | 2018-10-26 13:03:10 | Package
 - | 492 kB | 2019-12-24 13:49:09 | Baidu_Voice_RestApi_SampleCode.zip
 - | 1.0 GB | 2019-12-24 13:53:30 | Deepin-Apps-Installation.zip
 Go@MiCloud:~$ share wps-office_11.1.0.8722_amd64.deb
-===> 获取分享链接成功(采用了短链接，有效期24小时): http://t.wibliss.com/BRfnl
+获取分享链接成功(采用了短链接，有效期24小时): http://t.wibliss.com/BRfnl
 ```
 
 ---

@@ -9,6 +9,9 @@ type File struct {
 	Id         string
 	Type       string
 	Revision   string
+	Parent     *File
+	Child      []*File
+	IsActive   bool
 }
 
 type Msg struct {

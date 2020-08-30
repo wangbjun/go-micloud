@@ -3,11 +3,14 @@ package api
 import (
 	"crypto/md5"
 	"crypto/sha1"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/dustin/go-humanize"
 	"github.com/tidwall/gjson"
-	"go-micloud/user"
+	"go-micloud/pkg/color"
+	"go-micloud/pkg/zlog"
 	"hash"
 	"io"
 	"io/ioutil"
@@ -29,29 +32,10 @@ const (
 
 const ChunkSize = 4194304
 
-type Api interface {
-	GetFolder(string) ([]*File, error)
-	GetFile(string) ([]byte, error)
-	GetFileDownLoadUrl(string) (string, error)
-	UploadFile(string, string) (string, error)
-}
-
-type api struct {
-	user *user.User
-}
-
-var FileApi = NewApi(user.Account)
-
-func NewApi(user *user.User) Api {
-	return &api{
-		user: user,
-	}
-}
-
 //获取文件公开下载链接
-func (api *api) GetFileDownLoadUrl(id string) (string, error) {
+func (api *Api) GetFileDownLoadUrl(id string) (string, error) {
 	var apiUrl = fmt.Sprintf(GetFiles, id)
-	resp, err := api.user.HttpClient.Get(apiUrl)
+	resp, err := api.User.HttpClient.Get(apiUrl)
 	if err != nil {
 		return "", err
 	}
@@ -72,7 +56,7 @@ func (api *api) GetFileDownLoadUrl(id string) (string, error) {
 }
 
 //获取文件
-func (api *api) GetFile(id string) ([]byte, error) {
+func (api *Api) GetFile(id string) (io.Reader, error) {
 	result, err := api.get(fmt.Sprintf(GetFiles, id))
 	if err != nil {
 		return nil, err
@@ -87,38 +71,43 @@ func (api *api) GetFile(id string) ([]byte, error) {
 	}
 	realUrl := gjson.Parse(strings.Trim(string(result), "callback()"))
 
-	resp, err := api.user.HttpClient.PostForm(
+	resp, err := api.User.HttpClient.PostForm(
 		realUrl.Get("url").String(),
 		url.Values{"meta": []string{realUrl.Get("meta").String()}})
 	if err != nil {
 		return nil, err
 	}
-	all, err := ioutil.ReadAll(resp.Body)
-	return all, err
+	return resp.Body, err
 }
 
 //上传文件
-func (api *api) UploadFile(filePath string, parentId string) (string, error) {
+func (api *Api) UploadFile(filePath string, parentId string) (string, error) {
 	fileInfo, err := os.Stat(filePath)
 	if err != nil {
 		return "", err
 	}
 	fileName := path.Base(filePath)
+	zlog.Info(fmt.Sprintf("文件大小: %s", humanize.Bytes(uint64(fileInfo.Size()))))
+
 	if fileInfo.Size() == 0 || fileInfo.Size() >= 4*1024*1024*1024 {
-		return "", errors.New("can not upload empty file or file big than 4GB")
+		return "", errors.New("目前不支持大于4GB文件上传")
 	}
+	zlog.Info("计算文件sha1")
 	fileSize := fileInfo.Size()
 	fileSha1 := calFileHash(filePath, "sha1")
 
-	var blockInfos []BlockInfo
+	var blockInfos *[]BlockInfo
 	//大于4MB需要分片
+
+	zlog.Info("计算文件分片信息")
+
 	if fileSize > ChunkSize {
 		blockInfos, err = api.getFileBlocks(fileInfo, filePath)
 		if err != nil {
 			return "", errors.New("get file blocks failed")
 		}
 	} else {
-		blockInfos = []BlockInfo{
+		blockInfos = &[]BlockInfo{
 			{
 				Blob: struct {
 				}{},
@@ -135,16 +124,19 @@ func (api *api) UploadFile(filePath string, parentId string) (string, error) {
 				Size: fileSize,
 				Sha1: fileSha1,
 				Kss: UploadKss{
-					BlockInfos: blockInfos,
+					BlockInfos: *blockInfos,
 				},
 			},
 		},
 	}
 	data, _ := json.Marshal(uploadJson)
+
 	//创建分片
-	resp, err := api.user.HttpClient.PostForm(CreateFile, url.Values{
+	zlog.Info(fmt.Sprintf("创建文件分片(%d)", len(*blockInfos)))
+
+	resp, err := api.User.HttpClient.PostForm(CreateFile, url.Values{
 		"data":         []string{string(data)},
-		"serviceToken": []string{api.user.ServiceToken},
+		"serviceToken": []string{api.User.ServiceToken},
 	})
 	if err != nil {
 		return "", err
@@ -164,6 +156,7 @@ func (api *api) UploadFile(filePath string, parentId string) (string, error) {
 				Exists:   true,
 			},
 		}}
+		zlog.Info("当前文件已存在,上传完成")
 		return api.createFile(parentId, data)
 	} else {
 		//云盘不存在该文件
@@ -178,15 +171,23 @@ func (api *api) UploadFile(filePath string, parentId string) (string, error) {
 			return "", errors.New("no available url node")
 		}
 		//上传分片
+		file, err := os.Open(filePath)
+		if err != nil {
+			return "", err
+		}
+		var i = 0
 		var commitMetas []map[string]string
 		for k, block := range blockMetas {
-			commitMeta, err := api.uploadBlock(k, apiNode, fileMeta, filePath, block)
+			commitMeta, err := api.uploadBlock(k, apiNode, fileMeta, file, block)
 			if err != nil {
-				panic(err)
 				return "", err
 			}
 			commitMetas = append(commitMetas, commitMeta)
+			i++
+			fmt.Printf("\r%s", strings.Repeat(" ", 35))
+			fmt.Printf("\r" + color.Green(fmt.Sprintf("### Info: 正在上传分片(%d/%d)", i, len(*blockInfos))))
 		}
+		fmt.Printf("\n")
 		//最终完成上传
 		data := UploadJson{Content: UploadContent{
 			Name: fileName,
@@ -205,12 +206,13 @@ func (api *api) UploadFile(filePath string, parentId string) (string, error) {
 				Exists:   false,
 			},
 		}}
+		zlog.Info("所有分片上传完毕，上传完成")
 		return api.createFile(parentId, data)
 	}
 }
 
 //获取文件分片信息
-func (api *api) getFileBlocks(fileInfo os.FileInfo, filePath string) ([]BlockInfo, error) {
+func (api *Api) getFileBlocks(fileInfo os.FileInfo, filePath string) (*[]BlockInfo, error) {
 	num := int(math.Ceil(float64(fileInfo.Size()) / float64(ChunkSize)))
 	file, err := os.OpenFile(filePath, os.O_RDONLY, os.ModePerm)
 	if err != nil {
@@ -236,11 +238,11 @@ func (api *api) getFileBlocks(fileInfo os.FileInfo, filePath string) ([]BlockInf
 		}
 		blockInfos = append(blockInfos, blockInfo)
 	}
-	return blockInfos, nil
+	return &blockInfos, nil
 }
 
 //上传文件分片
-func (api *api) uploadBlock(num int, apiNode string, fileMeta string, filePath string, block interface{}) (map[string]string, error) {
+func (api *Api) uploadBlock(num int, apiNode string, fileMeta string, file *os.File, block interface{}) (map[string]string, error) {
 	m, ok := (block).(gjson.Result)
 	if !ok {
 		return nil, errors.New("block info error")
@@ -250,9 +252,7 @@ func (api *api) uploadBlock(num int, apiNode string, fileMeta string, filePath s
 		return map[string]string{"commit_meta": m.Get("commit_meta").String()}, nil
 	} else {
 		uploadUrl := apiNode + "/upload_block_chunk?chunk_pos=0&file_meta=" + fileMeta + "&block_meta=" + m.Get("block_meta").String()
-		file, _ := os.Open(filePath)
 		fileInfo, _ := file.Stat()
-
 		offset := int64(num * ChunkSize)
 		chunkSize := ChunkSize
 		if chunkSize > int(fileInfo.Size()-offset) {
@@ -269,7 +269,7 @@ func (api *api) uploadBlock(num int, apiNode string, fileMeta string, filePath s
 		request.Header.Set("Origin", "https://i.mi.com")
 		request.Header.Set("Referer", "https://i.mi.com/drive")
 		request.Header.Set("Content-Type", "application/octet-stream")
-		response, err := api.user.HttpClient.Do(request)
+		response, err := api.User.HttpClient.Do(request)
 		if err != nil {
 			return nil, err
 		}
@@ -284,21 +284,21 @@ func (api *api) uploadBlock(num int, apiNode string, fileMeta string, filePath s
 }
 
 //最终创建文件
-func (api *api) createFile(parentId string, data interface{}) (string, error) {
+func (api *Api) createFile(parentId string, data interface{}) (string, error) {
 	dataJson, err := json.Marshal(data)
 	if err != nil {
 		return "", err
 	}
 	form := url.Values{}
 	form.Add("data", string(dataJson))
-	form.Add("serviceToken", api.user.ServiceToken)
+	form.Add("serviceToken", api.User.ServiceToken)
 	form.Add("parentId", parentId)
 	request, _ := http.NewRequest("POST", UploadFile, strings.NewReader(form.Encode()))
 	request.Header.Set("DNT", "1")
 	request.Header.Set("Origin", "https://i.mi.com")
 	request.Header.Set("Referer", "https://i.mi.com/drive")
 	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	response, err := api.user.HttpClient.Do(request)
+	response, err := api.User.HttpClient.Do(request)
 	if err != nil {
 		return "", err
 	}
@@ -315,13 +315,13 @@ func (api *api) createFile(parentId string, data interface{}) (string, error) {
 	}
 }
 
-func (api *api) get(url string) ([]byte, error) {
-	result, err := api.user.HttpClient.Get(url)
+func (api *Api) get(url string) ([]byte, error) {
+	result, err := api.User.HttpClient.Get(url)
 	if err != nil {
 		return nil, err
 	}
 	if result.StatusCode == http.StatusFound {
-		result, err = api.user.HttpClient.Get(result.Header.Get("Location"))
+		result, err = api.User.HttpClient.Get(result.Header.Get("Location"))
 		if err != nil {
 			return nil, err
 		}
@@ -354,5 +354,5 @@ func calHash(reader io.Reader, tp string) string {
 	if _, err := io.Copy(h, reader); err != nil {
 		return ""
 	}
-	return fmt.Sprintf("%x", h.Sum(result))
+	return hex.EncodeToString(h.Sum(result))
 }
