@@ -23,35 +23,36 @@ USERNAME =
 PASSWORD =
 
 [APP]
-LOG_FILE = /tmp/short.log
+LOG_FILE = /tmp/micloud.log
 `
 
-var EnvFile = ".config/short.ini"
+var EnvFile = ".micloud.ini"
 
 var WorkDir = ""
 
 func init() {
 	userHomeDir, err := os.UserHomeDir()
 	if err != nil {
-		log.Panicf("get userHomeDir failed, err: %s", err.Error())
+		log.Panicf("用户目录不存在, err: %s\n", err.Error())
 	}
 	EnvFile = userHomeDir + "/" + EnvFile
 	if _, err := os.Stat(EnvFile); os.IsNotExist(err) {
-		file, _ := os.Create(EnvFile)
-		_, err := file.WriteString(configTpl)
-		_ = file.Sync()
-		file.Close()
+		file, err := os.Create(EnvFile)
 		if err != nil {
-			log.Panicf("init config file failed, err: %s", err.Error())
+			log.Panicln(err.Error())
 		}
+		_, err = file.WriteString(configTpl)
+		if err != nil {
+			log.Panicf("init config file failed, err: %s\n", err.Error())
+		}
+		file.Sync()
+		file.Close()
 	}
 	conf, err := ini.Load(EnvFile)
 	if err != nil {
 		log.Panicf("parse conf file [%s] failed, err: %s", EnvFile, err.Error())
 	}
-
 	Conf = conf
-
 	//工作目录配置
 	var workDir = conf.Section("XIAOMI").Key("WORK_DIR").String()
 	if workDir != "" {

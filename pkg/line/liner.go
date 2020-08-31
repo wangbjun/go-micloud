@@ -40,16 +40,15 @@ func (l *Liner) SetUpPrefix(path string) {
 func (l *Liner) SetWorldCompleter(words []string) {
 	l.state.SetWordCompleter(func(line string, pos int) (head string, completions []string, tail string) {
 		var (
-			prefix  = line
-			command = line
+			prefix     = line
+			command    = line
+			firstIndex = strings.Index(line, " ")
 		)
-		spaceIndex := strings.LastIndex(line, " ")
-		if spaceIndex >= 0 {
-			prefix = line[spaceIndex+1:]
-			command = line[:spaceIndex]
+		if firstIndex >= 0 {
+			prefix = line[firstIndex+1:]
+			command = line[:firstIndex]
 		}
 		var candidates []string
-
 		if command == "upload" {
 			var dir string
 			if strings.HasPrefix(prefix, "/") {
@@ -61,6 +60,9 @@ func (l *Liner) SetWorldCompleter(words []string) {
 			}
 			infos, _ := ioutil.ReadDir(dir)
 			for _, v := range infos {
+				if strings.HasPrefix(v.Name(), ".") {
+					continue
+				}
 				if strings.HasPrefix(strings.ToLower(v.Name()), strings.ToLower(prefix)) {
 					name := strings.ReplaceAll(v.Name(), " ", "\\s")
 					candidate := " " + dir + "/" + name

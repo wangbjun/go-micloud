@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/tidwall/gjson"
 	"github.com/urfave/cli/v2"
+	"go-micloud/internal/api"
 	"go-micloud/pkg/zlog"
 	"io/ioutil"
 	"net/http"
@@ -18,11 +19,18 @@ func (r *Command) Share() *cli.Command {
 		Usage: "Get public share url",
 		Action: func(context *cli.Context) error {
 			var args = context.Args()
+			if args.Len() == 0 {
+				return errors.New("缺少参数")
+			}
 			for i := 0; i < args.Len(); i++ {
-				fileName := args.Get(i)
-				fileName = strings.ReplaceAll(fileName, "\\s", " ")
-				fileInfo, ok := FileMap[fileName]
-				if !ok {
+				fileName := strings.ReplaceAll(args.Get(i), "\\s", " ")
+				var fileInfo *api.File
+				for _, f := range r.Folder.Cursor.Child {
+					if f.Name == fileName {
+						fileInfo = f
+					}
+				}
+				if fileInfo == nil {
 					return errors.New("当前目录不存在该文件")
 				}
 				if fileInfo.Type == "folder" {

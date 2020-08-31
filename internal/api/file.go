@@ -87,6 +87,7 @@ func (api *Api) UploadFile(filePath string, parentId string) (string, error) {
 		return "", err
 	}
 	fileName := path.Base(filePath)
+
 	zlog.Info(fmt.Sprintf("文件大小: %s", humanize.Bytes(uint64(fileInfo.Size()))))
 
 	if fileInfo.Size() == 0 || fileInfo.Size() >= 4*1024*1024*1024 {
@@ -98,9 +99,7 @@ func (api *Api) UploadFile(filePath string, parentId string) (string, error) {
 
 	var blockInfos *[]BlockInfo
 	//大于4MB需要分片
-
 	zlog.Info("计算文件分片信息")
-
 	if fileSize > ChunkSize {
 		blockInfos, err = api.getFileBlocks(fileInfo, filePath)
 		if err != nil {
