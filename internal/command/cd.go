@@ -8,17 +8,18 @@ import (
 
 func (r *Command) Cd() *cli.Command {
 	return &cli.Command{
-		Name:  "cd",
-		Usage: "Change Directory",
+		Name:            "cd",
+		Usage:           "Change Directory",
+		SkipFlagParsing: true,
 		Action: func(context *cli.Context) error {
 			var (
-				dir = context.Args().First()
-				err error
+				dirName = context.Args().First()
+				err     error
 			)
-			if strings.Trim(dir, " ") == "/" || strings.Trim(dir, " ") == "" {
-				dir = "/"
+			if strings.Trim(dirName, " ") == "/" || strings.Trim(dirName, " ") == "" {
+				dirName = "/"
 			}
-			err = folder.ChangeFolder(r.Folder, dir)
+			err = folder.ChangeFolder(r.Folder, dirName)
 			if err != nil {
 				return err
 			}

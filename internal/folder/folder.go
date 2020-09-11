@@ -52,6 +52,9 @@ func ChangeFolder(folder *Folder, name string) error {
 	} else if strings.HasPrefix(name, "..") {
 		count := strings.Count(name, "..")
 		for i := 0; i < count; i++ {
+			if folder.Cursor.Parent == nil {
+				break
+			}
 			folder.Cursor = folder.Cursor.Parent
 		}
 	} else {
@@ -101,7 +104,7 @@ func Format(files []*api.File) {
 func setUpWordCompleter(files []*api.File) {
 	var completerWord []string
 	for _, f := range files {
-		completerWord = append(completerWord, strings.ReplaceAll(f.Name, " ", "\\s"))
+		completerWord = append(completerWord, f.Name)
 	}
 	line.CsLiner.SetWorldCompleter(completerWord)
 }

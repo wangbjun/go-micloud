@@ -27,7 +27,7 @@ const (
 	GetFiles    = BaseUri + "/drive/user/files/%s?jsonpCallback=callback"
 	CreateFile  = BaseUri + "/drive/user/files/create"
 	UploadFile  = BaseUri + "/drive/user/files"
-	DeleteFiles = BaseUri + "/drive/user/files/%s/del"
+	DeleteFiles = BaseUri + "/drive/v2/user/records/filemanager"
 )
 
 const ChunkSize = 4194304
@@ -143,7 +143,8 @@ func (api *Api) UploadFile(filePath string, parentId string) (string, error) {
 	defer resp.Body.Close()
 	all, _ := ioutil.ReadAll(resp.Body)
 	if result := gjson.Get(string(all), "result").String(); result != "ok" {
-		return "", errors.New("create file failed, error: " + gjson.Get(string(all), "description").String())
+		zlog.Logger.Error("create file block failed: " + result)
+		return "", errors.New("create file block failed, error: " + gjson.Get(string(all), "description").String())
 	}
 	isExisted := gjson.Get(string(all), "data.storage.exists").Bool()
 	//云盘已有此文件

@@ -16,14 +16,14 @@ import (
 
 func (r *Command) Download() *cli.Command {
 	return &cli.Command{
-		Name:  "download",
-		Usage: "Download file",
+		Name:            "download",
+		Usage:           "Download file",
+		SkipFlagParsing: true,
 		Action: func(context *cli.Context) error {
-			var args = context.Args()
-			if args.Len() == 0 {
+			var fileName = context.Args().First()
+			if fileName == "" {
 				return errors.New("缺少参数")
 			}
-			var fileName = strings.ReplaceAll(args.Get(0), "\\s", " ")
 			var fileInfo *api.File
 			for _, f := range r.Folder.Cursor.Child {
 				if f.Name == fileName {

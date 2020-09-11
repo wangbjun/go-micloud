@@ -5,8 +5,11 @@ import (
 	"github.com/pkg/errors"
 	"github.com/urfave/cli/v2"
 	"go-micloud/pkg/zlog"
+	"io/ioutil"
 	"os"
+	"path"
 	"strings"
+	"time"
 )
 
 func (r *Command) Upload() *cli.Command {
@@ -14,11 +17,11 @@ func (r *Command) Upload() *cli.Command {
 		Name:  "upload",
 		Usage: "Upload file",
 		Action: func(context *cli.Context) error {
-			var args = context.Args()
-			if args.Len() == 0 {
+			var fileName = context.Args().First()
+			if fileName == "" {
 				return errors.New("缺少参数")
 			}
-			err := r.upload(args.Get(0))
+			err := r.upload(fileName, r.Folder.Cursor.Id)
 			if err != nil {
 				zlog.Error("上传失败：" + err.Error())
 			}
@@ -27,8 +30,7 @@ func (r *Command) Upload() *cli.Command {
 	}
 }
 
-func (r *Command) upload(name string) error {
-	fileName := strings.ReplaceAll(name, "\\s", " ")
+func (r *Command) upload(fileName, parentId string) error {
 	fileInfo, err := os.Stat(fileName)
 	if os.IsPermission(err) {
 		return errors.New("没有访问权限")
@@ -37,14 +39,29 @@ func (r *Command) upload(name string) error {
 		return errors.New("文件不存在")
 	}
 	if fileInfo.IsDir() {
-		return errors.New("目前不支持上传文件夹")
-	}
-	zlog.Info("开始上传")
-	_, err = r.HttpApi.UploadFile(fileName, r.Folder.Cursor.Id)
-	if err != nil {
-		return errors.New(fmt.Sprintf("上传失败！%s\n", err))
+		folder, err := r.HttpApi.CreateFolder(path.Base(fileName), parentId)
+		if err != nil {
+			return err
+		}
+		dir, err := ioutil.ReadDir(fileName)
+		for _, d := range dir {
+			if strings.HasPrefix(d.Name(), ".") {
+				continue
+			}
+			err := r.upload(fileName+"/"+d.Name(), folder.Id)
+			if err != nil {
+				return err
+			}
+		}
 	} else {
-		zlog.Info(fmt.Sprintf("[ %s ]上传成功", fileName))
+		zlog.Info(fmt.Sprintf("[ %s ]开始上传", fileName))
+		time.Sleep(time.Millisecond * 100)
+		_, err = r.HttpApi.UploadFile(fileName, parentId)
+		if err != nil {
+			return err
+		} else {
+			zlog.Info(fmt.Sprintf("[ %s ]上传成功", fileName))
+		}
 	}
 	return nil
 }

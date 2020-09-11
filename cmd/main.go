@@ -44,7 +44,7 @@ func main() {
 	app := &cli.App{
 		Name:    "Go-MiCloud",
 		Usage:   "MiCloud Third Party Client Written By Golang",
-		Version: "1.0",
+		Version: "1.1",
 		Commands: []*cli.Command{
 			c.Login(),
 			c.List(),
@@ -52,6 +52,7 @@ func main() {
 			c.Cd(),
 			c.Upload(),
 			c.Share(),
+			c.Delete(),
 		},
 		CommandNotFound: func(c *cli.Context, command string) {
 			zlog.Error("命令不存在")

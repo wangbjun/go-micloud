@@ -19,6 +19,7 @@ type Liner struct {
 
 func init() {
 	CsLiner.state.SetCtrlCAborts(true)
+	CsLiner.state.SetTabCompletionStyle(liner.TabPrints)
 }
 
 func (l *Liner) Prompt() (string, error) {
@@ -53,7 +54,6 @@ func (l *Liner) SetWorldCompleter(words []string) {
 			var dir string
 			if strings.HasPrefix(prefix, "/") {
 				dir = path.Dir(prefix)
-				dir = strings.ReplaceAll(dir, "\\s", " ")
 				prefix = prefix[strings.LastIndex(prefix, "/")+1:]
 			} else {
 				dir, _ = os.Getwd()
@@ -64,7 +64,10 @@ func (l *Liner) SetWorldCompleter(words []string) {
 					continue
 				}
 				if strings.HasPrefix(strings.ToLower(v.Name()), strings.ToLower(prefix)) {
-					name := strings.ReplaceAll(v.Name(), " ", "\\s")
+					name := v.Name()
+					if v.IsDir() {
+						name = name + "/"
+					}
 					candidate := " " + dir + "/" + name
 					if dir == "/" {
 						candidate = " /" + name
@@ -75,7 +78,6 @@ func (l *Liner) SetWorldCompleter(words []string) {
 		} else {
 			for _, k := range words {
 				if strings.HasPrefix(strings.ToLower(k), strings.ToLower(prefix)) {
-					k = strings.ReplaceAll(k, " ", "\\s")
 					candidates = append(candidates, " "+k)
 				}
 			}

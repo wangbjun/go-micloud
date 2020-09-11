@@ -24,13 +24,21 @@ type Msg struct {
 	}
 }
 
+type MsgV2 struct {
+	Result    string
+	Retryable bool
+	Code      int
+	Data      File
+}
+
 type UploadJson struct {
 	Content UploadContent `json:"content"`
 }
 
 type UploadContent struct {
-	Name    string      `json:"name"`
-	Storage interface{} `json:"storage"`
+	Name     string      `json:"name"`
+	ParentId string      `json:"parentId"`
+	Storage  interface{} `json:"storage"`
 }
 type UploadStorage struct {
 	Size     int64       `json:"size"`
