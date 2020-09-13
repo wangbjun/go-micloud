@@ -1,17 +1,14 @@
-package api
+package file
 
 import (
-	"crypto/md5"
-	"crypto/sha1"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/dustin/go-humanize"
 	"github.com/tidwall/gjson"
 	"go-micloud/pkg/color"
+	"go-micloud/pkg/utils"
 	"go-micloud/pkg/zlog"
-	"hash"
 	"io"
 	"io/ioutil"
 	"math"
@@ -22,38 +19,7 @@ import (
 	"strings"
 )
 
-const (
-	BaseUri     = "https://i.mi.com"
-	GetFiles    = BaseUri + "/drive/user/files/%s?jsonpCallback=callback"
-	CreateFile  = BaseUri + "/drive/user/files/create"
-	UploadFile  = BaseUri + "/drive/user/files"
-	DeleteFiles = BaseUri + "/drive/v2/user/records/filemanager"
-)
-
 const ChunkSize = 4194304
-
-//获取文件公开下载链接
-func (api *Api) GetFileDownLoadUrl(id string) (string, error) {
-	var apiUrl = fmt.Sprintf(GetFiles, id)
-	resp, err := api.User.HttpClient.Get(apiUrl)
-	if err != nil {
-		return "", err
-	}
-	all, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return "", err
-	}
-	realUrlStr := gjson.Get(string(all), "data.storage.jsonpUrl").String()
-	if realUrlStr == "" {
-		return "", errors.New("get fileUrl failed")
-	}
-	result, err := api.get(realUrlStr)
-	if err != nil {
-		return "", err
-	}
-	realUrl := gjson.Parse(strings.Trim(string(result), "callback()"))
-	return realUrl.String(), nil
-}
 
 //获取文件
 func (api *Api) GetFile(id string) (io.Reader, error) {
@@ -95,7 +61,7 @@ func (api *Api) UploadFile(filePath string, parentId string) (string, error) {
 	}
 	zlog.Info("计算文件sha1")
 	fileSize := fileInfo.Size()
-	fileSha1 := calFileHash(filePath, "sha1")
+	fileSha1 := utils.FilePathHash(filePath, "sha1")
 
 	var blockInfos *[]BlockInfo
 	//大于4MB需要分片
@@ -111,7 +77,7 @@ func (api *Api) UploadFile(filePath string, parentId string) (string, error) {
 				Blob: struct {
 				}{},
 				Sha1: fileSha1,
-				Md5:  calFileHash(filePath, "md5"),
+				Md5:  utils.FilePathHash(filePath, "md5"),
 				Size: fileSize,
 			},
 		}
@@ -133,26 +99,24 @@ func (api *Api) UploadFile(filePath string, parentId string) (string, error) {
 	//创建分片
 	zlog.Info(fmt.Sprintf("创建文件分片(%d)", len(*blockInfos)))
 
-	resp, err := api.User.HttpClient.PostForm(CreateFile, url.Values{
+	resp, err := api.postForm(CreateFile, url.Values{
 		"data":         []string{string(data)},
 		"serviceToken": []string{api.User.ServiceToken},
 	})
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
-	all, _ := ioutil.ReadAll(resp.Body)
-	if result := gjson.Get(string(all), "result").String(); result != "ok" {
+	if result := gjson.Get(string(*resp), "result").String(); result != "ok" {
 		zlog.Logger.Error("create file block failed: " + result)
-		return "", errors.New("create file block failed, error: " + gjson.Get(string(all), "description").String())
+		return "", errors.New("create file block failed, error: " + gjson.Get(string(*resp), "description").String())
 	}
-	isExisted := gjson.Get(string(all), "data.storage.exists").Bool()
+	isExisted := gjson.Get(string(*resp), "data.storage.exists").Bool()
 	//云盘已有此文件
 	if isExisted {
 		data := UploadJson{Content: UploadContent{
 			Name: fileName,
 			Storage: UploadExistedStorage{
-				UploadId: gjson.Get(string(all), "data.storage.uploadId").String(),
+				UploadId: gjson.Get(string(*resp), "data.storage.uploadId").String(),
 				Exists:   true,
 			},
 		}}
@@ -160,7 +124,7 @@ func (api *Api) UploadFile(filePath string, parentId string) (string, error) {
 		return api.createFile(parentId, data)
 	} else {
 		//云盘不存在该文件
-		kss := gjson.Get(string(all), "data.storage.kss")
+		kss := gjson.Get(string(*resp), "data.storage.kss")
 		var (
 			nodeUrls   = kss.Get("node_urls").Array()
 			fileMeta   = kss.Get("file_meta").String()
@@ -202,7 +166,7 @@ func (api *Api) UploadFile(filePath string, parentId string) (string, error) {
 					FileMeta:        kss.Get("file_meta").String(),
 					CommitMetas:     commitMetas,
 				},
-				UploadId: gjson.Get(string(all), "data.storage.uploadId").String(),
+				UploadId: gjson.Get(string(*resp), "data.storage.uploadId").String(),
 				Exists:   false,
 			},
 		}}
@@ -232,8 +196,8 @@ func (api *Api) getFileBlocks(fileInfo os.FileInfo, filePath string) (*[]BlockIn
 		}
 		blockInfo := BlockInfo{
 			Blob: struct{}{},
-			Sha1: calHash(strings.NewReader(string(b)), "sha1"),
-			Md5:  calHash(strings.NewReader(string(b)), "md5"),
+			Sha1: utils.FileHash(strings.NewReader(string(b)), "sha1"),
+			Md5:  utils.FileHash(strings.NewReader(string(b)), "md5"),
 			Size: int64(len(b)),
 		}
 		blockInfos = append(blockInfos, blockInfo)
@@ -315,44 +279,79 @@ func (api *Api) createFile(parentId string, data interface{}) (string, error) {
 	}
 }
 
-func (api *Api) get(url string) ([]byte, error) {
-	result, err := api.User.HttpClient.Get(url)
+//获取文件公开下载链接
+func (api *Api) GetFileDownLoadUrl(id string) (string, error) {
+	resp, err := api.User.HttpClient.Get(fmt.Sprintf(GetFiles, id))
+	if err != nil {
+		return "", err
+	}
+	all, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+	realUrlStr := gjson.Get(string(all), "data.storage.jsonpUrl").String()
+	if realUrlStr == "" {
+		return "", errors.New("get fileUrl failed")
+	}
+	result, err := api.get(realUrlStr)
+	if err != nil {
+		return "", err
+	}
+	realUrl := gjson.Parse(strings.Trim(string(result), "callback()"))
+	return realUrl.String(), nil
+}
+
+// 获取目录下的文件
+func (api *Api) GetFolder(id string) ([]*File, error) {
+	result, err := api.get(fmt.Sprintf(GetFolders, id))
 	if err != nil {
 		return nil, err
 	}
-	if result.StatusCode == http.StatusFound {
-		result, err = api.User.HttpClient.Get(result.Header.Get("Location"))
-		if err != nil {
-			return nil, err
-		}
-	}
-	bytes, err := ioutil.ReadAll(result.Body)
+	msg := &Msg{}
+	err = json.Unmarshal(result, msg)
 	if err != nil {
 		return nil, err
 	}
-	defer result.Body.Close()
-	return bytes, nil
-}
-
-func calFileHash(filePath string, tp string) string {
-	file, err := os.Open(filePath)
-	if err != nil {
-		return ""
-	}
-	defer file.Close()
-	return calHash(file, tp)
-}
-
-func calHash(reader io.Reader, tp string) string {
-	var result []byte
-	var h hash.Hash
-	if tp == "md5" {
-		h = md5.New()
+	if msg.Result == "ok" {
+		return msg.Data.List, nil
 	} else {
-		h = sha1.New()
+		return nil, errors.New("获取文件夹下文件失败")
 	}
-	if _, err := io.Copy(h, reader); err != nil {
-		return ""
+}
+
+func (api *Api) CreateFolder(name, parentId string) (string, error) {
+	resp, err := api.postForm(CreateFolder, url.Values{
+		"name":         []string{name},
+		"parentId":     []string{parentId},
+		"serviceToken": []string{api.User.ServiceToken},
+	})
+	if err != nil {
+		return "", err
 	}
-	return hex.EncodeToString(h.Sum(result))
+	if result := gjson.Get(string(*resp), "result").String(); result == "ok" {
+		return gjson.Get(string(*resp), "data.id").String(), nil
+	} else {
+		return "", errors.New("创建目录失败")
+	}
+}
+
+func (api *Api) DeleteFile(id, fType string) error {
+	record := []DeleteFile{{
+		Id:   id,
+		Type: fType,
+	}}
+	content, _ := json.Marshal(record)
+	resp, err := api.postForm(DeleteFiles, url.Values{
+		"operateType":    []string{"DELETE"},
+		"operateRecords": []string{string(content)},
+		"serviceToken":   []string{api.User.ServiceToken},
+	})
+	if err != nil {
+		return err
+	}
+	if result := gjson.Get(string(*resp), "result").String(); result == "ok" {
+		return nil
+	} else {
+		return errors.New("删除失败")
+	}
 }

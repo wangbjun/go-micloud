@@ -1,4 +1,4 @@
-package api
+package file
 
 type File struct {
 	Sha1       string
@@ -72,8 +72,7 @@ type BlockInfo struct {
 	Size int64    `json:"size"`
 }
 
-type FileDb struct {
-	Sha1       string
-	Md5        string
-	ModifyTime int64
+type DeleteFile struct {
+	Id   string `json:"id"`
+	Type string `json:"type"`
 }

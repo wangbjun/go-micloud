@@ -15,7 +15,7 @@ import (
 func (r *Command) Upload() *cli.Command {
 	return &cli.Command{
 		Name:  "upload",
-		Usage: "Upload file",
+		Usage: "上传文件或者文件夹",
 		Action: func(context *cli.Context) error {
 			var fileName = context.Args().First()
 			if fileName == "" {
@@ -39,7 +39,7 @@ func (r *Command) upload(fileName, parentId string) error {
 		return errors.New("文件不存在")
 	}
 	if fileInfo.IsDir() {
-		folder, err := r.HttpApi.CreateFolder(path.Base(fileName), parentId)
+		folderId, err := r.HttpApi.CreateFolder(path.Base(fileName), parentId)
 		if err != nil {
 			return err
 		}
@@ -48,7 +48,7 @@ func (r *Command) upload(fileName, parentId string) error {
 			if strings.HasPrefix(d.Name(), ".") {
 				continue
 			}
-			err := r.upload(fileName+"/"+d.Name(), folder.Id)
+			err := r.upload(fileName+"/"+d.Name(), folderId)
 			if err != nil {
 				return err
 			}

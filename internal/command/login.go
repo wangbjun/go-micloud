@@ -10,7 +10,7 @@ import (
 func (r *Command) Login() *cli.Command {
 	return &cli.Command{
 		Name:  "login",
-		Usage: "Login account",
+		Usage: "登录小米云服务账号",
 		Action: func(context *cli.Context) error {
 			if r.HttpApi.User.IsLogin {
 				return errors.New("您已登录，账号为：" + r.HttpApi.User.UserName)

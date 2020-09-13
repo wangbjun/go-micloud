@@ -8,7 +8,7 @@ import (
 func (r *Command) List() *cli.Command {
 	return &cli.Command{
 		Name:  "ls",
-		Usage: "List all files",
+		Usage: "列表当前目录所有文件和文件夹",
 		Action: func(context *cli.Context) error {
 			files, err := r.HttpApi.GetFolder(r.Folder.Cursor.Id)
 			if err != nil {

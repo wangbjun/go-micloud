@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"github.com/peterh/liner"
 	"github.com/urfave/cli/v2"
-	"go-micloud/internal/api"
 	"go-micloud/internal/command"
+	"go-micloud/internal/file"
 	"go-micloud/internal/folder"
 	"go-micloud/internal/user"
 	"go-micloud/pkg/line"
@@ -16,7 +16,7 @@ import (
 )
 
 func main() {
-	httpApi := api.NewApi(user.NewUser())
+	httpApi := file.NewApi(user.NewUser())
 	if httpApi.User.AutoLogin() != nil {
 		err := httpApi.User.Login(false)
 		if err != nil {
@@ -43,7 +43,7 @@ func main() {
 	folder.AddFolder(c.Folder, "/", files)
 	app := &cli.App{
 		Name:    "Go-MiCloud",
-		Usage:   "MiCloud Third Party Client Written By Golang",
+		Usage:   "MiCloud Third Party Console Client Written By Golang",
 		Version: "1.1",
 		Commands: []*cli.Command{
 			c.Login(),
@@ -53,6 +53,7 @@ func main() {
 			c.Upload(),
 			c.Share(),
 			c.Delete(),
+			c.MkDir(),
 		},
 		CommandNotFound: func(c *cli.Context, command string) {
 			zlog.Error("命令不存在")
@@ -64,6 +65,7 @@ func main() {
 		if err != nil {
 			if err == liner.ErrPromptAborted || err == io.EOF {
 				_ = line.CsLiner.Close()
+				println()
 				return
 			}
 			zlog.Error(fmt.Sprintf("命令键入错误： %s", err.Error()))

@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"github.com/tidwall/gjson"
 	"go-micloud/configs"
-	"go-micloud/pkg/function"
+	"go-micloud/pkg/utils"
 	"go-micloud/pkg/zlog"
 	"io/ioutil"
 	"net/http"
@@ -128,7 +128,7 @@ func (u *User) Login(input bool) error {
 		if account.Key("USERNAME").String() != "" && !input {
 			username = account.Key("USERNAME").String()
 		} else {
-			username = function.GetInput("账号")
+			username = utils.GetInput("账号")
 			if username == "" {
 				zlog.Error("账号不能为空")
 				continue
@@ -137,10 +137,10 @@ func (u *User) Login(input bool) error {
 	PASS:
 		if account.Key("PASSWORD").String() != "" && !input {
 			secretPwd, _ := base64.StdEncoding.DecodeString(account.Key("PASSWORD").String())
-			password, _ = function.AesCBCDecrypt(secretPwd,
+			password, _ = utils.AesCBCDecrypt(secretPwd,
 				[]byte("inqH0kEHFvSKqPkR"), []byte("1234567891234500"))
 		} else {
-			password = function.GetInputPwd("密码")
+			password = utils.GetInputPwd("密码")
 			if len(password) < 6 {
 				zlog.Error("密码不能少于6位")
 				goto PASS
@@ -195,7 +195,7 @@ func (u *User) Login(input bool) error {
 		if err != nil {
 			return err
 		}
-		err = u.VerifyPhoneCode(function.GetInput("手机验证码"))
+		err = u.VerifyPhoneCode(utils.GetInput("手机验证码"))
 		if err != nil {
 			return err
 		}
@@ -260,7 +260,7 @@ func (u *User) serviceLoginAuth(userName, password string) (string, error) {
 	form.Add("_sign", "2&V1_passport&wqS4omyjALxMm//3wLXcVcITjEc=")
 	form.Add("serviceParam", `{"checkSafePhone":false}`)
 	form.Add("user", userName)
-	form.Add("hash", strings.ToUpper(function.MD5([]byte(password))))
+	form.Add("hash", strings.ToUpper(utils.MD5([]byte(password))))
 	form.Add("cc", "")
 	form.Add("log", `{"title":"dataCenterZone","message":"China"}{"title":"locale","message":"zh_CN"}{"title":"env","message":"release"}{"title":"browser","message":{"name":"Chrome","version":79}}{"title":"search","message":""}{"title":"outerlinkDone","message":"done"}{"title":"addInputChange","message":"userName"}{"title":"loginOrigin","message":"loginMain"}`)
 	resp, err := u.HttpClient.PostForm(apiUrl, form)
@@ -487,7 +487,7 @@ func saveAccount(username, password string) {
 	account := configs.Conf.Section("XIAOMI_ACCOUNT")
 	account.Key("USERNAME").SetValue(username)
 
-	secretPwd, _ := function.AesCBCEncrypt([]byte(password),
+	secretPwd, _ := utils.AesCBCEncrypt([]byte(password),
 		[]byte("inqH0kEHFvSKqPkR"), []byte("1234567891234500"))
 
 	account.Key("PASSWORD").SetValue(secretPwd)

@@ -4,10 +4,10 @@ import (
 	"errors"
 	"fmt"
 	"github.com/dustin/go-humanize"
-	"go-micloud/internal/api"
+	"go-micloud/internal/file"
 	"go-micloud/pkg/color"
-	"go-micloud/pkg/function"
 	"go-micloud/pkg/line"
+	"go-micloud/pkg/utils"
 	"strings"
 )
 
@@ -17,12 +17,12 @@ const (
 )
 
 type Folder struct {
-	Cursor *api.File
-	Root   *api.File
+	Cursor *file.File
+	Root   *file.File
 }
 
 func NewFolder() *Folder {
-	base := &api.File{
+	base := &file.File{
 		Name:     "/",
 		Id:       "0",
 		Type:     Tfolder,
@@ -36,7 +36,7 @@ func NewFolder() *Folder {
 	}
 }
 
-func PrintFolder(root *api.File, level int) {
+func PrintFolder(root *file.File, level int) {
 	fmt.Println(strings.Repeat("  ", level) + root.Name)
 	level++
 	if root.Child != nil {
@@ -74,7 +74,7 @@ func ChangeFolder(folder *Folder, name string) error {
 	return nil
 }
 
-func AddFolder(folder *Folder, name string, files []*api.File) {
+func AddFolder(folder *Folder, name string, files []*file.File) {
 	if name == "/" {
 		folder.Root.Child = files
 		for _, f := range files {
@@ -89,19 +89,19 @@ func AddFolder(folder *Folder, name string, files []*api.File) {
 	go setUpWordCompleter(files)
 }
 
-func Format(files []*api.File) {
+func Format(files []*file.File) {
 	fmt.Printf("total %d\n", len(files))
 	for _, v := range files {
 		if v.Type == "file" {
-			fmt.Printf("- | %-6s | %s | %s\n", humanize.Bytes(uint64(v.Size)), function.FormatTimeInt(int64(v.CreateTime), true), v.Name)
+			fmt.Printf("- | %-6s | %s | %s\n", humanize.Bytes(uint64(v.Size)), utils.FormatTimeInt(int64(v.CreateTime), true), v.Name)
 		} else {
-			fmt.Printf("d | ------ | %s | %s\n", function.FormatTimeInt(int64(v.CreateTime), true), color.Blue(v.Name))
+			fmt.Printf("d | ------ | %s | %s\n", utils.FormatTimeInt(int64(v.CreateTime), true), color.Blue(v.Name))
 		}
 	}
 }
 
 // 设置Tab补全提示
-func setUpWordCompleter(files []*api.File) {
+func setUpWordCompleter(files []*file.File) {
 	var completerWord []string
 	for _, f := range files {
 		completerWord = append(completerWord, f.Name)
@@ -109,7 +109,7 @@ func setUpWordCompleter(files []*api.File) {
 	line.CsLiner.SetWorldCompleter(completerWord)
 }
 
-func setUpLinePrefix(cursor *api.File) {
+func setUpLinePrefix(cursor *file.File) {
 	var (
 		names []string
 		c     = cursor

@@ -2,14 +2,20 @@ package command
 
 import (
 	"github.com/urfave/cli/v2"
+	"go-micloud/internal/file"
 	"go-micloud/internal/folder"
 	"strings"
 )
 
+type Command struct {
+	HttpApi file.Api
+	Folder  *folder.Folder
+}
+
 func (r *Command) Cd() *cli.Command {
 	return &cli.Command{
 		Name:            "cd",
-		Usage:           "Change Directory",
+		Usage:           "改变当前目录，例如：cd movies",
 		SkipFlagParsing: true,
 		Action: func(context *cli.Context) error {
 			var (

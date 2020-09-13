@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/tidwall/gjson"
 	"github.com/urfave/cli/v2"
-	"go-micloud/internal/api"
+	"go-micloud/internal/file"
 	"go-micloud/pkg/zlog"
 	"io/ioutil"
 	"net/http"
@@ -16,14 +16,14 @@ import (
 func (r *Command) Share() *cli.Command {
 	return &cli.Command{
 		Name:  "share",
-		Usage: "Get public share url",
+		Usage: "获取一个公共分享链接",
 		Action: func(context *cli.Context) error {
 			var fileName = context.Args().First()
 			if fileName == "" {
 				return errors.New("缺少参数")
 			}
 
-			var fileInfo *api.File
+			var fileInfo *file.File
 			for _, f := range r.Folder.Cursor.Child {
 				if f.Name == fileName {
 					fileInfo = f

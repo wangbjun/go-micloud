@@ -6,7 +6,7 @@ import (
 	"github.com/dustin/go-humanize"
 	"github.com/urfave/cli/v2"
 	"go-micloud/configs"
-	"go-micloud/internal/api"
+	"go-micloud/internal/file"
 	"go-micloud/pkg/color"
 	"go-micloud/pkg/zlog"
 	"io"
@@ -17,14 +17,14 @@ import (
 func (r *Command) Download() *cli.Command {
 	return &cli.Command{
 		Name:            "download",
-		Usage:           "Download file",
+		Usage:           "下载文件或者文件夹",
 		SkipFlagParsing: true,
 		Action: func(context *cli.Context) error {
 			var fileName = context.Args().First()
 			if fileName == "" {
 				return errors.New("缺少参数")
 			}
-			var fileInfo *api.File
+			var fileInfo *file.File
 			for _, f := range r.Folder.Cursor.Child {
 				if f.Name == fileName {
 					fileInfo = f
@@ -47,7 +47,7 @@ func (r *Command) Download() *cli.Command {
 	}
 }
 
-func (r *Command) download(fileInfo *api.File, dir string) error {
+func (r *Command) download(fileInfo *file.File, dir string) error {
 	if fileInfo.Type == "folder" {
 		files, err := r.HttpApi.GetFolder(fileInfo.Id)
 		if err != nil {
@@ -80,11 +80,11 @@ func (r *Command) download(fileInfo *api.File, dir string) error {
 		if err != nil {
 			return errors.New("创建失败: " + err.Error())
 		}
-		file, err := r.HttpApi.GetFile(fileInfo.Id)
+		reader, err := r.HttpApi.GetFile(fileInfo.Id)
 		if err != nil {
 			return err
 		}
-		_, err = io.Copy(openFile, io.TeeReader(file, &WriteCounter{FileSize: uint64(fileInfo.Size)}))
+		_, err = io.Copy(openFile, io.TeeReader(reader, &WriteCounter{FileSize: uint64(fileInfo.Size)}))
 		fmt.Printf("\n")
 		if err != nil {
 			return errors.New("写入失败: " + err.Error())

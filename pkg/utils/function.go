@@ -1,4 +1,4 @@
-package function
+package utils
 
 import (
 	"crypto/md5"
@@ -43,6 +43,15 @@ func FileHash(reader io.Reader, tp string) string {
 		return ""
 	}
 	return fmt.Sprintf("%x", h.Sum(result))
+}
+
+func FilePathHash(filePath string, tp string) string {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return ""
+	}
+	defer file.Close()
+	return FileHash(file, tp)
 }
 
 func AesCBCEncrypt(src, key, iv []byte) (string, error) {
