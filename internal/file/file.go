@@ -21,6 +21,10 @@ import (
 
 const ChunkSize = 4194304
 
+var (
+	SizeTooBigError = errors.New("单个文件不能大于4GB")
+)
+
 //获取文件
 func (api *Api) GetFile(id string) (io.Reader, error) {
 	result, err := api.get(fmt.Sprintf(GetFiles, id))
@@ -57,7 +61,7 @@ func (api *Api) UploadFile(filePath string, parentId string) (string, error) {
 	zlog.Info(fmt.Sprintf("文件大小: %s", humanize.Bytes(uint64(fileInfo.Size()))))
 
 	if fileInfo.Size() == 0 || fileInfo.Size() >= 4*1024*1024*1024 {
-		return "", errors.New("目前不支持大于4GB文件上传")
+		return "", SizeTooBigError
 	}
 	zlog.Info("计算文件sha1")
 	fileSize := fileInfo.Size()

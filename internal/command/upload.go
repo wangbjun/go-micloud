@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/urfave/cli/v2"
+	"go-micloud/internal/file"
 	"go-micloud/pkg/zlog"
 	"io/ioutil"
 	"os"
@@ -58,6 +59,10 @@ func (r *Command) upload(fileName, parentId string) error {
 		time.Sleep(time.Millisecond * 100)
 		_, err = r.HttpApi.UploadFile(fileName, parentId)
 		if err != nil {
+			if err == file.SizeTooBigError {
+				zlog.Error(fmt.Sprintf("[ %s ] %s", fileName, err))
+				return nil
+			}
 			return err
 		} else {
 			zlog.Info(fmt.Sprintf("[ %s ]上传成功", fileName))
