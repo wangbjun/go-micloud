@@ -17,8 +17,8 @@ func (r *Command) Upload() *cli.Command {
 	return &cli.Command{
 		Name:  "upload",
 		Usage: "上传文件或者文件夹",
-		Action: func(context *cli.Context) error {
-			var fileName = context.Args().First()
+		Action: func(ctx *cli.Context) error {
+			var fileName = strings.Join(ctx.Args().Slice(), " ")
 			if fileName == "" {
 				return errors.New("缺少参数")
 			}

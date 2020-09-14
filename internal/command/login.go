@@ -11,7 +11,7 @@ func (r *Command) Login() *cli.Command {
 	return &cli.Command{
 		Name:  "login",
 		Usage: "登录小米云服务账号",
-		Action: func(context *cli.Context) error {
+		Action: func(ctx *cli.Context) error {
 			if r.HttpApi.User.IsLogin {
 				return errors.New("您已登录，账号为：" + r.HttpApi.User.UserName)
 			}
@@ -28,7 +28,7 @@ func (r *Command) Login() *cli.Command {
 						return err
 					}
 				}
-				_ = r.List().Run(context)
+				_ = r.List().Run(ctx)
 			}
 			return nil
 		},

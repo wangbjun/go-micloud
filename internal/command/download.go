@@ -16,11 +16,10 @@ import (
 
 func (r *Command) Download() *cli.Command {
 	return &cli.Command{
-		Name:            "download",
-		Usage:           "下载文件或者文件夹",
-		SkipFlagParsing: true,
-		Action: func(context *cli.Context) error {
-			var fileName = context.Args().First()
+		Name:  "download",
+		Usage: "下载文件或者文件夹",
+		Action: func(ctx *cli.Context) error {
+			var fileName = strings.Join(ctx.Args().Slice(), " ")
 			if fileName == "" {
 				return errors.New("缺少参数")
 			}

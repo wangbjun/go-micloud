@@ -31,7 +31,7 @@ func main() {
 		}
 	}
 	c := command.Command{
-		HttpApi: *httpApi,
+		HttpApi: httpApi,
 		Folder:  folder.NewFolder(),
 	}
 	// 初始化根目录
@@ -40,7 +40,7 @@ func main() {
 		zlog.Error(err.Error())
 		return
 	}
-	folder.AddFolder(c.Folder, "/", files)
+	folder.AddFolder(c.Folder, files)
 	app := &cli.App{
 		Name:    "Go-MiCloud",
 		Usage:   "MiCloud Third Party Console Client Written By Golang",
@@ -54,6 +54,7 @@ func main() {
 			c.Share(),
 			c.Delete(),
 			c.MkDir(),
+			c.Tree(),
 		},
 		CommandNotFound: func(c *cli.Context, command string) {
 			zlog.Error("命令不存在")
@@ -65,7 +66,7 @@ func main() {
 		if err != nil {
 			if err == liner.ErrPromptAborted || err == io.EOF {
 				_ = line.CsLiner.Close()
-				println()
+				println("exit")
 				return
 			}
 			zlog.Error(fmt.Sprintf("命令键入错误： %s", err.Error()))

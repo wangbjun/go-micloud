@@ -17,8 +17,8 @@ func (r *Command) Share() *cli.Command {
 	return &cli.Command{
 		Name:  "share",
 		Usage: "获取一个公共分享链接",
-		Action: func(context *cli.Context) error {
-			var fileName = context.Args().First()
+		Action: func(ctx *cli.Context) error {
+			var fileName = strings.Join(ctx.Args().Slice(), " ")
 			if fileName == "" {
 				return errors.New("缺少参数")
 			}

@@ -36,8 +36,13 @@ func NewFolder() *Folder {
 	}
 }
 
+// 打印树型目录结构
 func PrintFolder(root *file.File, level int) {
-	fmt.Println(strings.Repeat("  ", level) + root.Name)
+	if level > 0 {
+		fmt.Println(strings.Repeat("│   ", level-1) + strings.Repeat("├── ", 1) + root.Name)
+	} else {
+		fmt.Println(strings.Repeat("├── ", level) + root.Name)
+	}
 	level++
 	if root.Child != nil {
 		for _, v := range root.Child {
@@ -74,18 +79,23 @@ func ChangeFolder(folder *Folder, name string) error {
 	return nil
 }
 
-func AddFolder(folder *Folder, name string, files []*file.File) {
-	if name == "/" {
-		folder.Root.Child = files
-		for _, f := range files {
-			f.Parent = folder.Root
-		}
-	} else {
-		folder.Cursor.Child = files
-		for _, f := range files {
-			f.Parent = folder.Cursor
+func AddFolder(folder *Folder, files []*file.File) {
+	if folder.Cursor.Name == "/" {
+		folder.Cursor = folder.Root
+	}
+	for _, old := range folder.Cursor.Child {
+		if old.Child != nil {
+			for _, f := range files {
+				if f.Name == old.Name {
+					f.Child = old.Child
+				}
+			}
 		}
 	}
+	for _, f := range files {
+		f.Parent = folder.Cursor
+	}
+	folder.Cursor.Child = files
 	go setUpWordCompleter(files)
 }
 

@@ -8,18 +8,17 @@ import (
 )
 
 type Command struct {
-	HttpApi file.Api
+	HttpApi *file.Api
 	Folder  *folder.Folder
 }
 
 func (r *Command) Cd() *cli.Command {
 	return &cli.Command{
-		Name:            "cd",
-		Usage:           "改变当前目录，例如：cd movies",
-		SkipFlagParsing: true,
-		Action: func(context *cli.Context) error {
+		Name:  "cd",
+		Usage: "改变当前目录，例如：cd movies",
+		Action: func(ctx *cli.Context) error {
 			var (
-				dirName = context.Args().First()
+				dirName = strings.Join(ctx.Args().Slice(), " ")
 				err     error
 			)
 			if strings.Trim(dirName, " ") == "/" || strings.Trim(dirName, " ") == "" {
@@ -33,8 +32,7 @@ func (r *Command) Cd() *cli.Command {
 			if err != nil {
 				return err
 			}
-			folder.AddFolder(r.Folder, r.Folder.Cursor.Name, files)
-
+			folder.AddFolder(r.Folder, files)
 			return nil
 		},
 	}
