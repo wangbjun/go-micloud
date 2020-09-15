@@ -17,14 +17,11 @@ func (r *Command) Cd() *cli.Command {
 		Name:  "cd",
 		Usage: "改变当前目录，例如：cd movies",
 		Action: func(ctx *cli.Context) error {
-			var (
-				dirName = strings.Join(ctx.Args().Slice(), " ")
-				err     error
-			)
+			dirName := ctx.Args().First()
 			if strings.Trim(dirName, " ") == "/" || strings.Trim(dirName, " ") == "" {
 				dirName = "/"
 			}
-			err = folder.ChangeFolder(r.Folder, dirName)
+			err := folder.ChangeFolder(r.Folder, dirName)
 			if err != nil {
 				return err
 			}

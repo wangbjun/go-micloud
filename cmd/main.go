@@ -11,40 +11,25 @@ import (
 	"go-micloud/pkg/line"
 	"go-micloud/pkg/zlog"
 	"io"
-	"os"
 	"strings"
 )
 
 func main() {
 	httpApi := file.NewApi(user.NewUser())
-	if httpApi.User.AutoLogin() != nil {
-		err := httpApi.User.Login(false)
-		if err != nil {
-			if err == user.ErrorPwd {
-				zlog.Error("账号或密码错误,请重新输入账号密码")
-				err = httpApi.User.Login(true)
-			}
-			if err != nil {
-				zlog.Error(err.Error())
-				return
-			}
-		}
+	if !userLogin(httpApi) {
+		return
 	}
 	c := command.Command{
 		HttpApi: httpApi,
 		Folder:  folder.NewFolder(),
 	}
-	// 初始化根目录
-	files, err := c.HttpApi.GetFolder("0")
-	if err != nil {
-		zlog.Error(err.Error())
+	if !initFolder(c) {
 		return
 	}
-	folder.AddFolder(c.Folder, files)
 	app := &cli.App{
 		Name:    "Go-MiCloud",
 		Usage:   "MiCloud Third Party Console Client Written By Golang",
-		Version: "1.1",
+		Version: "1.2",
 		Commands: []*cli.Command{
 			c.Login(),
 			c.List(),
@@ -57,10 +42,9 @@ func main() {
 			c.Tree(),
 		},
 		CommandNotFound: func(c *cli.Context, command string) {
-			zlog.Error("命令不存在")
+			zlog.Error(fmt.Sprintf("命令[ %s ]不存在", command))
 		},
 	}
-	line.CsLiner.SetWorldCompleter(nil)
 	for {
 		commandLine, err := line.CsLiner.Prompt()
 		if err != nil {
@@ -72,14 +56,48 @@ func main() {
 			zlog.Error(fmt.Sprintf("命令键入错误： %s", err.Error()))
 			continue
 		}
-		line.CsLiner.AppendHistory(commandLine)
-		var args = append(
-			[]string{os.Args[0]},
-			strings.Split(commandLine, " ")...)
-		err = app.Run(args)
+		var cmd = commandLine
+		var argument = ""
+		if strings.Contains(commandLine, " ") {
+			i := strings.Index(commandLine, " ")
+			cmd = commandLine[0:i]
+			argument = commandLine[i+1:]
+		}
+		err = app.Run([]string{app.Name, cmd, argument})
 		if err != nil {
 			zlog.Error(err.Error())
 			continue
 		}
+		line.CsLiner.AppendHistory(commandLine)
 	}
+}
+
+// 初始化根目录
+func initFolder(c command.Command) bool {
+	files, err := c.HttpApi.GetFolder("0")
+	if err != nil {
+		zlog.Error(err.Error())
+		return false
+	}
+	folder.AddFolder(c.Folder, files)
+	return true
+}
+
+// 用户登录
+func userLogin(httpApi *file.Api) bool {
+	if httpApi.User.AutoLogin() == nil {
+		return true
+	}
+	err := httpApi.User.Login(false)
+	if err != nil {
+		if err == user.ErrorPwd {
+			zlog.Error("账号或密码错误,请重试！")
+			err = httpApi.User.Login(true)
+		}
+		if err != nil {
+			zlog.Error(err.Error())
+			return false
+		}
+	}
+	return true
 }

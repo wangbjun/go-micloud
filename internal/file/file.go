@@ -319,7 +319,7 @@ func (api *Api) GetFolder(id string) ([]*File, error) {
 	if msg.Result == "ok" {
 		return msg.Data.List, nil
 	} else {
-		return nil, errors.New("获取文件夹下文件失败")
+		return nil, errors.New("获取文件夹信息失败")
 	}
 }
 

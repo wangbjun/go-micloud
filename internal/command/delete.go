@@ -6,7 +6,6 @@ import (
 	"github.com/urfave/cli/v2"
 	"go-micloud/internal/file"
 	"go-micloud/pkg/zlog"
-	"strings"
 )
 
 func (r *Command) Delete() *cli.Command {
@@ -14,7 +13,7 @@ func (r *Command) Delete() *cli.Command {
 		Name:  "rm",
 		Usage: "删除文件或者文件夹，即放入回收站",
 		Action: func(ctx *cli.Context) error {
-			var fileName = strings.Join(ctx.Args().Slice(), " ")
+			fileName := ctx.Args().First()
 			if fileName == "" {
 				return errors.New("缺少参数")
 			}
