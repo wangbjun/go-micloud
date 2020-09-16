@@ -12,7 +12,7 @@ const base = "Go@MiCloud:"
 
 var CsLiner = Liner{liner.NewLiner(), base}
 
-var SysCommand = []string{"cd", "ls", "download", "upload", "login", "mkdir", "share", "tree"}
+var SysCommand = []string{"cd", "ls", "download", "upload", "login", "mkdir", "share", "tree", "rm"}
 
 type Liner struct {
 	state  *liner.State
@@ -21,7 +21,6 @@ type Liner struct {
 
 func init() {
 	CsLiner.state.SetCtrlCAborts(true)
-	CsLiner.state.SetTabCompletionStyle(liner.TabPrints)
 }
 
 func (l *Liner) Prompt() (string, error) {
@@ -68,7 +67,7 @@ func (l *Liner) SetWorldCompleter(words []string) {
 					if strings.HasPrefix(v.Name(), ".") {
 						continue
 					}
-					if strings.Contains(strings.ToLower(v.Name()), strings.ToLower(prefix)) {
+					if strings.HasPrefix(strings.ToLower(v.Name()), strings.ToLower(prefix)) {
 						name := v.Name()
 						if v.IsDir() {
 							name = name + "/"
@@ -89,7 +88,7 @@ func (l *Liner) SetWorldCompleter(words []string) {
 			}
 		} else {
 			for _, k := range SysCommand {
-				if strings.Contains(strings.ToLower(k), strings.ToLower(prefix)) {
+				if strings.HasPrefix(strings.ToLower(k), strings.ToLower(prefix)) {
 					candidates = append(candidates, strings.ReplaceAll(k, prefix, "")+" ")
 				}
 			}
