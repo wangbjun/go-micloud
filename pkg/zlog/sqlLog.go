@@ -99,7 +99,6 @@ func (SqlLog) Print(values ...interface{}) {
 		} else {
 			messages["info"] = values[2:]
 		}
-
-		Logger.Sugar().Infow("sql_log", "messages", messages)
+		zapLogger.Sugar().Infow("sql_log", "messages", messages)
 	}
 }

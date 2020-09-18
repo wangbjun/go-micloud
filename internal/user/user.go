@@ -59,7 +59,7 @@ func (u *User) autoRenewal() {
 				var apiUrl = fmt.Sprintf(autoRenewal, strconv.Itoa(int(time.Now().UnixNano()))[0:13])
 				resp, err := u.HttpClient.Get(apiUrl)
 				if err != nil {
-					zlog.Logger.Sugar().Errorf("auto_renewal error: %s", err.Error())
+					zlog.Error(fmt.Sprintf("auto_renewal error: %s", err.Error()))
 					return
 				}
 				if len(resp.Cookies()) > 0 {

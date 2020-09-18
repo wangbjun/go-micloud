@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-var Logger *zap.Logger
+var zapLogger *zap.Logger
 
 func init() {
 	infoLevel := zap.LevelEnablerFunc(func(lvl zapcore.Level) bool {
@@ -39,33 +39,29 @@ func init() {
 		EncodeDuration: zapcore.StringDurationEncoder,
 		EncodeCaller:   zapcore.ShortCallerEncoder,
 	})
-
 	core := zapcore.NewTee(zapcore.NewCore(jsonEncoder, sync, infoLevel))
-
-	logger := zap.New(core, zap.AddCaller(), zap.AddCallerSkip(1))
-	defer logger.Sync()
-
-	Logger = logger
+	zapLogger = zap.New(core, zap.AddCaller(), zap.AddCallerSkip(1))
+	defer zapLogger.Sync()
 }
 
 func PrintInfo(msg string) {
 	fmt.Printf(color.Green(time.Now().Format("2006-01-02 15:04:05")+" #%s\n"), msg)
-	Logger.Sugar().With("time", time.Now().Format(utils.YmdHis)).Info(msg)
+	zapLogger.Sugar().With("time", time.Now().Format(utils.YmdHis)).Info(msg)
 }
 
 func PrintError(msg string) {
 	fmt.Printf(color.Red(time.Now().Format("2006-01-02 15:04:05")+" #%s\n"), msg)
-	Logger.Sugar().With("time", time.Now().Format(utils.YmdHis)).Error(msg)
+	zapLogger.Sugar().With("time", time.Now().Format(utils.YmdHis)).Error(msg)
 }
 
 func Info(msg string) {
-	Logger.Sugar().With("time", time.Now().Format(utils.YmdHis)).Info(msg)
+	zapLogger.Sugar().With("time", time.Now().Format(utils.YmdHis)).Info(msg)
 }
 
 func Warn(msg string) {
-	Logger.Sugar().With("time", time.Now().Format(utils.YmdHis)).Warn(msg)
+	zapLogger.Sugar().With("time", time.Now().Format(utils.YmdHis)).Warn(msg)
 }
 
 func Error(msg string) {
-	Logger.Sugar().With("time", time.Now().Format(utils.YmdHis)).Error(msg)
+	zapLogger.Sugar().With("time", time.Now().Format(utils.YmdHis)).Error(msg)
 }
