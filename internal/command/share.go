@@ -35,7 +35,7 @@ func (r *Command) Share() *cli.Command {
 			if fileInfo.Type == "folder" {
 				return errors.New("目前不支持分享文件夹")
 			}
-			downloadUrl, err := r.HttpApi.GetFileDownLoadUrl(fileInfo.Id)
+			downloadUrl, err := r.FileApi.GetFileDownLoadUrl(fileInfo.Id)
 			if err != nil {
 				return errors.New(fmt.Sprintf("获取下载地址失败：%s", err.Error()))
 			}
@@ -49,13 +49,13 @@ func (r *Command) Share() *cli.Command {
 				}
 				resp.Body.Close()
 			}
-			zlog.Logger.Info(shortUrl)
+			zlog.Info(shortUrl)
 
 			i := strings.LastIndex(shortUrl, "/")
 
 			shortUrl = shortUrl[:i] + "?t=" + shortUrl[i+1:]
 
-			zlog.Info(fmt.Sprintf("获取分享成功,有效期24小时，复制链接( %s )到浏览器里面打开下载,请注意浏览器弹框！", shortUrl))
+			zlog.PrintInfo(fmt.Sprintf("获取分享成功,有效期24小时，复制链接( %s )到浏览器里面打开下载,请注意浏览器弹框！", shortUrl))
 			return nil
 		},
 	}

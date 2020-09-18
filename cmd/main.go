@@ -19,11 +19,12 @@ func main() {
 	if !userLogin(httpApi) {
 		return
 	}
-	c := command.Command{
-		HttpApi: httpApi,
-		Folder:  folder.NewFolder(),
+	cmd := command.Command{
+		FileApi:    httpApi,
+		Folder:     folder.NewFolder(),
+		TaskManage: file.NewManage(httpApi),
 	}
-	if !initFolder(c) {
+	if !initFolder(cmd) {
 		return
 	}
 	app := &cli.App{
@@ -31,18 +32,18 @@ func main() {
 		Usage:   "MiCloud Third Party Console Client Written By Golang",
 		Version: "1.2",
 		Commands: []*cli.Command{
-			c.Login(),
-			c.List(),
-			c.Download(),
-			c.Cd(),
-			c.Upload(),
-			c.Share(),
-			c.Delete(),
-			c.MkDir(),
-			c.Tree(),
+			cmd.Login(),
+			cmd.List(),
+			cmd.Download(),
+			cmd.Cd(),
+			cmd.Upload(),
+			cmd.Share(),
+			cmd.Delete(),
+			cmd.MkDir(),
+			cmd.Tree(),
 		},
 		CommandNotFound: func(c *cli.Context, command string) {
-			zlog.Error(fmt.Sprintf("命令[ %s ]不存在", command))
+			zlog.PrintError(fmt.Sprintf("命令[ %s ]不存在", command))
 		},
 	}
 	for {
@@ -53,7 +54,7 @@ func main() {
 				println("exit")
 				return
 			}
-			zlog.Error(fmt.Sprintf("命令键入错误： %s", err.Error()))
+			zlog.PrintError(fmt.Sprintf("命令键入错误： %s", err.Error()))
 			continue
 		}
 		var cmd = commandLine
@@ -65,7 +66,7 @@ func main() {
 		}
 		err = app.Run([]string{app.Name, cmd, argument})
 		if err != nil {
-			zlog.Error(err.Error())
+			zlog.PrintError(err.Error())
 			continue
 		}
 		line.CsLiner.AppendHistory(commandLine)
@@ -74,9 +75,9 @@ func main() {
 
 // 初始化根目录
 func initFolder(c command.Command) bool {
-	files, err := c.HttpApi.GetFolder("0")
+	files, err := c.FileApi.GetFolder("0")
 	if err != nil {
-		zlog.Error(err.Error())
+		zlog.PrintError(err.Error())
 		return false
 	}
 	folder.AddFolder(c.Folder, files)
@@ -86,18 +87,20 @@ func initFolder(c command.Command) bool {
 // 用户登录
 func userLogin(httpApi *file.Api) bool {
 	if httpApi.User.AutoLogin() == nil {
+		zlog.PrintInfo("自动登录成功！")
 		return true
 	}
 	err := httpApi.User.Login(false)
 	if err != nil {
 		if err == user.ErrorPwd {
-			zlog.Error("账号或密码错误,请重试！")
+			zlog.PrintError("账号或密码错误,请重试！")
 			err = httpApi.User.Login(true)
 		}
 		if err != nil {
-			zlog.Error(err.Error())
+			zlog.PrintError("登录失败：" + err.Error())
 			return false
 		}
 	}
+	zlog.PrintInfo("登录成功！")
 	return true
 }

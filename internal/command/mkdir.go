@@ -16,12 +16,12 @@ func (r *Command) MkDir() *cli.Command {
 			if fileName == "" {
 				return errors.New("缺少参数")
 			}
-			_, err := r.HttpApi.CreateFolder(fileName, r.Folder.Cursor.Id)
+			_, err := r.FileApi.CreateFolder(fileName, r.Folder.Cursor.Id)
 			if err != nil {
-				zlog.Error("创建目录失败：" + err.Error())
+				zlog.PrintError("创建目录失败：" + err.Error())
 				return err
 			}
-			zlog.Info(fmt.Sprintf("[ %s ]创建成功", fileName))
+			zlog.PrintInfo(fmt.Sprintf("[ %s ]创建成功", fileName))
 			return nil
 		},
 	}

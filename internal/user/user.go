@@ -43,8 +43,7 @@ func NewUser() *User {
 			CheckRedirect: func(req *http.Request, via []*http.Request) error {
 				return http.ErrUseLastResponse
 			},
-			Transport: zlog.HttpLoggerTransport,
-			Jar:       jar,
+			Jar: jar,
 		},
 	}
 	go user.autoRenewal()
@@ -108,6 +107,7 @@ func (u *User) AutoLogin() error {
 	if err != nil {
 		return err
 	}
+	zlog.Info(fmt.Sprintf("check_phone_code: %s", result))
 	if result == "" {
 		u.UserId = cUserId
 		u.UserName = cUserName
@@ -115,7 +115,7 @@ func (u *User) AutoLogin() error {
 		u.IsLogin = true
 		return nil
 	} else {
-		return errors.New("登录失败，请重试")
+		return errors.New("自动登录失败")
 	}
 }
 
@@ -130,7 +130,7 @@ func (u *User) Login(input bool) error {
 		} else {
 			username = utils.GetInput("账号")
 			if username == "" {
-				zlog.Error("账号不能为空")
+				zlog.PrintError("账号不能为空")
 				continue
 			}
 		}
@@ -142,7 +142,7 @@ func (u *User) Login(input bool) error {
 		} else {
 			password = utils.GetInputPwd("密码")
 			if len(password) < 6 {
-				zlog.Error("密码不能少于6位")
+				zlog.PrintError("密码不能少于6位")
 				goto PASS
 			}
 		}
@@ -162,35 +162,17 @@ func (u *User) Login(input bool) error {
 	if err != nil {
 		return err
 	}
-	parseUrl, err := url.Parse(serviceLogin)
-	if err != nil {
-		return err
-	}
-	cookies := u.HttpClient.Jar.Cookies(parseUrl)
-	for _, v := range cookies {
-		if v.Name == "userId" {
-			u.UserId = v.Value
-		}
-		if v.Name == "serviceToken" {
-			u.ServiceToken = v.Value
-		}
-	}
 	result, err := u.CheckPhoneCode()
 	if err != nil {
 		return err
 	}
 	if result == "" {
-		u.IsLogin = true
-		u.UserName = username
-		return nil
+		return u.updateUserInfo(username, password)
 	}
 	err = u.SendPhoneCode(result)
 	if err == ErrorNotNeedSms {
-		u.IsLogin = true
-		u.UserName = username
-		zlog.Info("登录成功！")
-		go saveAccount(username, password)
-		return nil
+		println(222)
+		return u.updateUserInfo(username, password)
 	} else {
 		if err != nil {
 			return err
@@ -204,15 +186,31 @@ func (u *User) Login(input bool) error {
 			return err
 		}
 		if result == "" {
-			u.IsLogin = true
-			u.UserName = username
-			zlog.Info("登录成功！")
-			go saveAccount(username, password)
-			return nil
+			return u.updateUserInfo(username, password)
 		} else {
 			return errors.New("登录失败，请重试！")
 		}
 	}
+}
+
+func (u *User) updateUserInfo(username, password string) error {
+	u.IsLogin = true
+	u.UserName = username
+	parseUrl, err := url.Parse(drive)
+	if err != nil {
+		return err
+	}
+	cookies := u.HttpClient.Jar.Cookies(parseUrl)
+	for _, v := range cookies {
+		if v.Name == "userId" {
+			u.UserId = v.Value
+		}
+		if v.Name == "serviceToken" {
+			u.ServiceToken = v.Value
+		}
+	}
+	go saveAccountToFile(username, password)
+	return nil
 }
 
 func (u *User) serviceLogin() error {
@@ -319,7 +317,6 @@ func (u *User) CheckPhoneCode() (string, error) {
 		return "", err
 	}
 	defer resp.Body.Close()
-
 	all, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
@@ -454,7 +451,7 @@ func (u *User) updateCookies(domain string, newCookies []*http.Cookie) {
 			oldCookies = append(oldCookies, v)
 		}
 		if v.Name == "deviceId" {
-			go saveDeviceId(v)
+			go saveDeviceIdToFile(v)
 		}
 	}
 	var validCookies []*http.Cookie
@@ -475,15 +472,16 @@ func (u *User) updateCookies(domain string, newCookies []*http.Cookie) {
 	u.HttpClient.Jar = jar
 }
 
-func saveDeviceId(v *http.Cookie) {
+func saveDeviceIdToFile(v *http.Cookie) {
 	deviceKey := configs.Conf.Section("XIAOMI").Key("DEVICE_ID")
 	deviceId := deviceKey.String()
 	if deviceId == "" {
 		deviceKey.SetValue(v.Value)
 	}
+	configs.SaveToFile()
 }
 
-func saveAccount(username, password string) {
+func saveAccountToFile(username, password string) {
 	account := configs.Conf.Section("XIAOMI_ACCOUNT")
 	account.Key("USERNAME").SetValue(username)
 
@@ -491,5 +489,5 @@ func saveAccount(username, password string) {
 		[]byte("inqH0kEHFvSKqPkR"), []byte("1234567891234500"))
 
 	account.Key("PASSWORD").SetValue(secretPwd)
-	go configs.SaveToFile()
+	configs.SaveToFile()
 }

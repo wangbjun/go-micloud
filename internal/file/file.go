@@ -4,9 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/dustin/go-humanize"
 	"github.com/tidwall/gjson"
-	"go-micloud/pkg/color"
 	"go-micloud/pkg/utils"
 	"go-micloud/pkg/zlog"
 	"io"
@@ -22,7 +20,7 @@ import (
 const ChunkSize = 4194304
 
 var (
-	SizeTooBigError = errors.New("单个文件不能大于4GB")
+	ErrorSizeTooBig = errors.New("单个文件不能大于4GB")
 )
 
 //获取文件
@@ -51,29 +49,28 @@ func (api *Api) GetFile(id string) (io.Reader, error) {
 }
 
 //上传文件
-func (api *Api) UploadFile(filePath string, parentId string) (string, error) {
-	fileInfo, err := os.Stat(filePath)
+func (api *Api) UploadFile(task *task) (string, error) {
+	fileInfo, err := os.Stat(task.FilePath)
 	if err != nil {
 		return "", err
 	}
-	fileName := path.Base(filePath)
-
-	zlog.Info(fmt.Sprintf("文件大小: %s", humanize.Bytes(uint64(fileInfo.Size()))))
-
-	if fileInfo.Size() == 0 || fileInfo.Size() >= 4*1024*1024*1024 {
-		return "", SizeTooBigError
+	fileName := path.Base(task.FilePath)
+	if fileInfo.Size() >= 4*1024*1024*1024 {
+		return "", ErrorSizeTooBig
 	}
-	zlog.Info("计算文件sha1")
-	fileSize := fileInfo.Size()
-	fileSha1 := utils.FilePathHash(filePath, "sha1")
 
-	var blockInfos *[]BlockInfo
+	api.LogStatus(task, "计算文件sha1值")
+
+	fileSize := fileInfo.Size()
+	fileSha1 := utils.FilePathHash(task.FilePath, "sha1")
+
+	api.LogStatus(task, "计算文件分片信息")
 	//大于4MB需要分片
-	zlog.Info("计算文件分片信息")
+	var blockInfos *[]BlockInfo
 	if fileSize > ChunkSize {
-		blockInfos, err = api.getFileBlocks(fileInfo, filePath)
+		blockInfos, err = api.getFileBlocks(fileInfo, task.FilePath)
 		if err != nil {
-			return "", errors.New("get file blocks failed")
+			return "", errors.New("计算文件分片失败")
 		}
 	} else {
 		blockInfos = &[]BlockInfo{
@@ -81,7 +78,7 @@ func (api *Api) UploadFile(filePath string, parentId string) (string, error) {
 				Blob: struct {
 				}{},
 				Sha1: fileSha1,
-				Md5:  utils.FilePathHash(filePath, "md5"),
+				Md5:  utils.FilePathHash(task.FilePath, "md5"),
 				Size: fileSize,
 			},
 		}
@@ -99,10 +96,8 @@ func (api *Api) UploadFile(filePath string, parentId string) (string, error) {
 		},
 	}
 	data, _ := json.Marshal(uploadJson)
-
 	//创建分片
-	zlog.Info(fmt.Sprintf("创建文件分片(%d)", len(*blockInfos)))
-
+	task.StatusMsg = fmt.Sprintf("创建文件分片(%d)", len(*blockInfos))
 	resp, err := api.postForm(CreateFile, url.Values{
 		"data":         []string{string(data)},
 		"serviceToken": []string{api.User.ServiceToken},
@@ -111,8 +106,8 @@ func (api *Api) UploadFile(filePath string, parentId string) (string, error) {
 		return "", err
 	}
 	if result := gjson.Get(string(*resp), "result").String(); result != "ok" {
-		zlog.Logger.Error("create file block failed: " + result)
-		return "", errors.New("create file block failed, error: " + gjson.Get(string(*resp), "description").String())
+		zlog.Error("创建文件分片失败：" + string(*resp))
+		return "", errors.New("创建文件分片失败")
 	}
 	isExisted := gjson.Get(string(*resp), "data.storage.exists").Bool()
 	//云盘已有此文件
@@ -124,8 +119,8 @@ func (api *Api) UploadFile(filePath string, parentId string) (string, error) {
 				Exists:   true,
 			},
 		}}
-		zlog.Info("当前文件已存在,上传完成")
-		return api.createFile(parentId, data)
+		api.LogStatus(task, "此文件已存在，上传完成")
+		return api.createFile(task.ParentId, data)
 	} else {
 		//云盘不存在该文件
 		kss := gjson.Get(string(*resp), "data.storage.kss")
@@ -136,10 +131,10 @@ func (api *Api) UploadFile(filePath string, parentId string) (string, error) {
 		)
 		apiNode := nodeUrls[0].String()
 		if apiNode == "" {
-			return "", errors.New("no available url node")
+			return "", errors.New("暂无可用上传节点")
 		}
 		//上传分片
-		file, err := os.Open(filePath)
+		file, err := os.Open(task.FilePath)
 		if err != nil {
 			return "", err
 		}
@@ -152,10 +147,8 @@ func (api *Api) UploadFile(filePath string, parentId string) (string, error) {
 			}
 			commitMetas = append(commitMetas, commitMeta)
 			i++
-			fmt.Printf("\r%s", strings.Repeat(" ", 35))
-			fmt.Printf("\r" + color.Green(fmt.Sprintf("### Info: 正在上传分片(%d/%d)", i, len(*blockInfos))))
+			api.LogStatus(task, fmt.Sprintf("正在上传分片(%d/%d)", i, len(*blockInfos)))
 		}
-		fmt.Printf("\n")
 		//最终完成上传
 		data := UploadJson{Content: UploadContent{
 			Name: fileName,
@@ -174,9 +167,13 @@ func (api *Api) UploadFile(filePath string, parentId string) (string, error) {
 				Exists:   false,
 			},
 		}}
-		zlog.Info("所有分片上传完毕，上传完成")
-		return api.createFile(parentId, data)
+		return api.createFile(task.ParentId, data)
 	}
+}
+
+func (api *Api) LogStatus(task *task, msg string) {
+	task.StatusMsg = msg
+	zlog.Info(fmt.Sprintf("[ %s ] %s", task.FilePath, msg))
 }
 
 //获取文件分片信息
@@ -276,7 +273,8 @@ func (api *Api) createFile(parentId string, data interface{}) (string, error) {
 		return "", err
 	}
 	if result := gjson.Get(string(readAll), "result").String(); result != "ok" {
-		return "", errors.New(gjson.Get(string(readAll), "description").String())
+		zlog.Error("创建文件失败：" + string(readAll))
+		return "", errors.New("创建文件失败")
 	} else {
 		id := gjson.Get(string(readAll), "data.id").String()
 		return id, nil

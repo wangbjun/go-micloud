@@ -12,15 +12,15 @@ func (r *Command) Login() *cli.Command {
 		Name:  "login",
 		Usage: "登录小米云服务账号",
 		Action: func(ctx *cli.Context) error {
-			if r.HttpApi.User.IsLogin {
-				return errors.New("您已登录，账号为：" + r.HttpApi.User.UserName)
+			if r.FileApi.User.IsLogin {
+				return errors.New("您已登录，账号为：" + r.FileApi.User.UserName)
 			}
-			if r.HttpApi.User.AutoLogin() != nil {
-				err := r.HttpApi.User.Login(false)
+			if r.FileApi.User.AutoLogin() != nil {
+				err := r.FileApi.User.Login(false)
 				if err != nil {
 					if err == user.ErrorPwd {
-						zlog.Error("账号或密码错误,请重新输入账号密码")
-						err := r.HttpApi.User.Login(true)
+						zlog.PrintError("账号或密码错误,请重新输入账号密码")
+						err := r.FileApi.User.Login(true)
 						if err != nil {
 							return err
 						}

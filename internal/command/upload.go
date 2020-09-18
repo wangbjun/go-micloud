@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/pkg/errors"
 	"github.com/urfave/cli/v2"
-	"go-micloud/internal/file"
 	"go-micloud/pkg/zlog"
 	"io/ioutil"
 	"os"
@@ -18,21 +17,21 @@ func (r *Command) Upload() *cli.Command {
 		Name:  "upload",
 		Usage: "上传文件或者文件夹",
 		Action: func(ctx *cli.Context) error {
-			fileName := ctx.Args().First()
-			if fileName == "" {
+			filePath := ctx.Args().First()
+			if filePath == "" {
 				return errors.New("缺少参数")
 			}
-			err := r.upload(fileName, r.Folder.Cursor.Id)
+			err := r.upload(filePath, r.Folder.Cursor.Id)
 			if err != nil {
-				zlog.Error("上传失败：" + err.Error())
+				zlog.PrintError("上传失败：" + err.Error())
 			}
 			return nil
 		},
 	}
 }
 
-func (r *Command) upload(fileName, parentId string) error {
-	fileInfo, err := os.Stat(fileName)
+func (r *Command) upload(filePath, parentId string) error {
+	fileInfo, err := os.Stat(filePath)
 	if os.IsPermission(err) {
 		return errors.New("没有访问权限")
 	}
@@ -40,33 +39,26 @@ func (r *Command) upload(fileName, parentId string) error {
 		return errors.New("文件不存在")
 	}
 	if fileInfo.IsDir() {
-		folderId, err := r.HttpApi.CreateFolder(path.Base(fileName), parentId)
+		folderId, err := r.FileApi.CreateFolder(path.Base(filePath), parentId)
 		if err != nil {
 			return err
 		}
-		dir, err := ioutil.ReadDir(fileName)
+		dir, err := ioutil.ReadDir(filePath)
 		for _, d := range dir {
 			if strings.HasPrefix(d.Name(), ".") {
 				continue
 			}
-			err := r.upload(fileName+"/"+d.Name(), folderId)
+			err := r.upload(filePath+"/"+d.Name(), folderId)
 			if err != nil {
 				return err
 			}
 		}
 	} else {
-		zlog.Info(fmt.Sprintf("[ %s ]开始上传", fileName))
+		go func() {
+			r.TaskManage.AddUploadTask(filePath, parentId)
+		}()
+		zlog.PrintInfo(fmt.Sprintf("添加上传任务: %s", filePath))
 		time.Sleep(time.Millisecond * 100)
-		_, err = r.HttpApi.UploadFile(fileName, parentId)
-		if err != nil {
-			if err == file.SizeTooBigError {
-				zlog.Error(fmt.Sprintf("[ %s ] %s", fileName, err))
-				return nil
-			}
-			return err
-		} else {
-			zlog.Info(fmt.Sprintf("[ %s ]上传成功", fileName))
-		}
 	}
 	return nil
 }

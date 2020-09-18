@@ -26,12 +26,12 @@ func (r *Command) Delete() *cli.Command {
 			if fileInfo == nil {
 				return errors.New("当前目录不存在该文件")
 			}
-			err := r.HttpApi.DeleteFile(fileInfo.Id, fileInfo.Type)
+			err := r.FileApi.DeleteFile(fileInfo.Id, fileInfo.Type)
 			if err != nil {
-				zlog.Error("删除失败：" + err.Error())
+				zlog.PrintError("删除失败：" + err.Error())
 				return err
 			}
-			zlog.Info(fmt.Sprintf("[ %s ]删除成功", fileName))
+			zlog.PrintInfo(fmt.Sprintf("[ %s ]删除成功", fileName))
 			return nil
 		},
 	}

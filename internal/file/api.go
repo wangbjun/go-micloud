@@ -38,6 +38,9 @@ func (api *Api) get(url string) ([]byte, error) {
 	if result.StatusCode == http.StatusFound {
 		return api.get(result.Header.Get("Location"))
 	}
+	if result.StatusCode == http.StatusUnauthorized {
+		return nil, errors.New("登录授权失败")
+	}
 	body, err := ioutil.ReadAll(result.Body)
 	if err != nil {
 		return nil, err
@@ -53,6 +56,9 @@ func (api *Api) postForm(url string, values url.Values) (*[]byte, error) {
 	result, err := api.User.HttpClient.PostForm(url, values)
 	if err != nil {
 		return nil, err
+	}
+	if result.StatusCode == http.StatusUnauthorized {
+		return nil, errors.New("登录授权失败")
 	}
 	body, err := ioutil.ReadAll(result.Body)
 	if err != nil {

@@ -8,8 +8,9 @@ import (
 )
 
 type Command struct {
-	HttpApi *file.Api
-	Folder  *folder.Folder
+	FileApi    *file.Api
+	Folder     *folder.Folder
+	TaskManage *file.TaskManage
 }
 
 func (r *Command) Cd() *cli.Command {
@@ -25,7 +26,7 @@ func (r *Command) Cd() *cli.Command {
 			if err != nil {
 				return err
 			}
-			files, err := r.HttpApi.GetFolder(r.Folder.Cursor.Id)
+			files, err := r.FileApi.GetFolder(r.Folder.Cursor.Id)
 			if err != nil {
 				return err
 			}
