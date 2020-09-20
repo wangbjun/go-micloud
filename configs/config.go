@@ -27,6 +27,7 @@ func init() {
 	}
 	Conf.LogFile = "/tmp/micloud.log"
 	Conf.FilePath = userHomeDir + "/.micloud.json"
+	Conf.WorkDir, _ = os.Getwd()
 	// 配置文件不存在
 	if _, err := os.Stat(Conf.FilePath); os.IsNotExist(err) {
 		Conf.SaveToFile()

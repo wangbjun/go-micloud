@@ -67,6 +67,7 @@ func (u *User) autoRenewal() {
 				}
 				if len(resp.Cookies()) > 0 {
 					u.updateCookies(imi, resp.Cookies())
+					configs.Conf.SaveToFile()
 				}
 			}
 		}
@@ -117,14 +118,14 @@ func (u *User) autoLogin() error {
 }
 
 // 登录
-func (u *User) Login() error {
+func (u *User) Login(isInput bool) error {
 	err := u.autoLogin()
 	if err == nil {
 		return nil
 	}
 	zlog.Info(fmt.Sprintf("auto login failed: %s", err.Error()))
 	username, password := u.getConfNamePwd()
-	if username == "" || password == "" {
+	if username == "" || password == "" || isInput {
 		username, password = u.getInputNamePwd()
 	}
 	err = u.serviceLogin()
@@ -287,7 +288,7 @@ func (u *User) serviceLoginAuth(userName, password string) (string, error) {
 	all = []byte(strings.Trim(string(all), "&&&START&&&"))
 	location := gjson.Get(string(all), "location").String()
 	if location == "" {
-		return "", errors.New("登录校验失败")
+		return "", errors.New("账户或密码错误")
 	}
 	return location, nil
 }

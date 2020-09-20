@@ -16,7 +16,7 @@ import (
 
 func main() {
 	httpApi := file.NewApi(user.NewUser())
-	if err := httpApi.User.Login(); err != nil {
+	if err := httpApi.User.Login(false); err != nil {
 		zlog.PrintError("登录失败： " + err.Error())
 		return
 	}
