@@ -14,13 +14,8 @@ type loggedRoundTripper struct {
 
 func (c *loggedRoundTripper) RoundTrip(request *http.Request) (*http.Response, error) {
 	startTime := time.Now()
-
-	zapLogger.Sugar().Infof("request_start method = %s url = %s time = %s", request.Method, request.URL.String(), time.Now().Format("2006-01-02 15:04:05"))
-
 	request.Header.Add("Account-Agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.79 Safari/537.36")
-
 	response, err := c.rt.RoundTrip(request)
-
 	duration := time.Since(startTime)
 	duration /= time.Millisecond
 
@@ -31,6 +26,5 @@ func (c *loggedRoundTripper) RoundTrip(request *http.Request) (*http.Response, e
 		zapLogger.Sugar().Infof("response_success method = %s status = %d duration = %d url = %s time = %s",
 			request.Method, response.StatusCode, duration, request.URL.String(), time.Now().Format("2006-01-02 15:04:05"))
 	}
-
 	return response, err
 }

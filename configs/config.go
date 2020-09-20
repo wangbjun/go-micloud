@@ -1,70 +1,63 @@
 package configs
 
 import (
-	"gopkg.in/ini.v1"
+	"encoding/json"
+	"io/ioutil"
 	"log"
 	"os"
 )
 
-var Conf *ini.File
+var Conf = new(Config)
 
-const configTpl = `[XIAOMI]
-USER_ID =
-
-SERVICE_TOKEN =
-
-WORK_DIR =
-
-DEVICE_ID =
-
-[XIAOMI_ACCOUNT]
-USERNAME =
-
-PASSWORD =
-
-[APP]
-LOG_FILE = /tmp/micloud.log
-`
-
-var EnvFile = ".micloud.ini"
-
-var WorkDir = ""
+type Config struct {
+	FilePath     string `json:"file_path"`
+	UserId       string `json:"user_id"`
+	ServiceToken string `json:"service_token"`
+	DeviceId     string `json:"device_id"`
+	Username     string `json:"username"`
+	Password     string `json:"password"`
+	WorkDir      string `json:"work_dir"`
+	LogFile      string `json:"log_file"`
+}
 
 func init() {
 	userHomeDir, err := os.UserHomeDir()
 	if err != nil {
-		log.Panicf("用户目录不存在, err: %s\n", err.Error())
+		log.Panicf("用户目录不存在: %s\n", err.Error())
 	}
-	EnvFile = userHomeDir + "/" + EnvFile
-	if _, err := os.Stat(EnvFile); os.IsNotExist(err) {
-		file, err := os.Create(EnvFile)
-		if err != nil {
-			log.Panicln(err.Error())
-		}
-		_, err = file.WriteString(configTpl)
-		if err != nil {
-			log.Panicf("init config file failed, err: %s\n", err.Error())
-		}
-		file.Sync()
-		file.Close()
-	}
-	conf, err := ini.Load(EnvFile)
-	if err != nil {
-		log.Panicf("parse conf file [%s] failed, err: %s", EnvFile, err.Error())
-	}
-	Conf = conf
-	//工作目录配置
-	var workDir = conf.Section("XIAOMI").Key("WORK_DIR").String()
-	if workDir != "" {
-		WorkDir = workDir
+	Conf.LogFile = "/tmp/micloud.log"
+	Conf.FilePath = userHomeDir + "/.micloud.json"
+	// 配置文件不存在
+	if _, err := os.Stat(Conf.FilePath); os.IsNotExist(err) {
+		Conf.SaveToFile()
 	} else {
-		WorkDir, _ = os.Getwd()
+		file, err := os.Open(Conf.FilePath)
+		if err != nil {
+			log.Panicf("加载配置文件失败: %s", err.Error())
+		}
+		all, _ := ioutil.ReadAll(file)
+		err = json.Unmarshal(all, &Conf)
+		if err != nil {
+			log.Panicf("解析配置文件失败: %s", err.Error())
+		}
+		file.Close()
 	}
 }
 
-func SaveToFile() {
-	err := Conf.SaveTo(EnvFile)
+func (r *Config) SaveToFile() {
+	file, err := os.Create(r.FilePath)
 	if err != nil {
-		log.Printf("save config file failed, error %s", err)
+		log.Printf("加载配置文件失败: %s", err.Error())
+		return
 	}
+	data, err := json.MarshalIndent(r, "", "  ")
+	if err != nil {
+		log.Printf("序列化配置文件失败: %s", err.Error())
+		return
+	}
+	_, err = file.WriteString(string(data))
+	if err != nil {
+		log.Printf("保存配置文件失败: %s", err.Error())
+	}
+	file.Close()
 }

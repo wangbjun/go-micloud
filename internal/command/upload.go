@@ -55,10 +55,10 @@ func (r *Command) upload(filePath, parentId string) error {
 		}
 	} else {
 		go func() {
-			r.TaskManage.AddUploadTask(filePath, parentId)
+			r.TaskManage.AddUploadTask(fileInfo.Size(), filePath, parentId)
 		}()
 		zlog.PrintInfo(fmt.Sprintf("添加上传任务: %s", filePath))
-		time.Sleep(time.Millisecond * 100)
+		time.Sleep(time.Millisecond * 10)
 	}
 	return nil
 }

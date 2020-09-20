@@ -99,7 +99,6 @@ func GetUuidV4() string {
 //获取终端输入
 func GetInput(msg string) string {
 	var newLiner = liner.NewLiner()
-	defer newLiner.Close()
 	msg = "请输入" + msg + "："
 	var prompt = "Go@MiCloud:~$ " + msg
 	commandLine, err := newLiner.Prompt(prompt)
@@ -107,20 +106,7 @@ func GetInput(msg string) string {
 		fmt.Printf("Prompt Error: %s\n", err)
 		os.Exit(-1)
 	}
-	return commandLine
-}
-
-//获取终端输入
-func GetInputPwd(msg string) string {
-	var newLiner = liner.NewLiner()
-	defer newLiner.Close()
-	msg = "请输入" + msg + "："
-	var prompt = "Go@MiCloud:~$ " + msg
-	commandLine, err := newLiner.PasswordPrompt(prompt)
-	if err != nil {
-		fmt.Printf("Prompt Error: %s\n", err)
-		os.Exit(-1)
-	}
+	newLiner.Close()
 	return commandLine
 }
 

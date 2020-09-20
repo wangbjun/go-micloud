@@ -32,8 +32,10 @@ type User struct {
 	HttpClient   *http.Client
 	IsLogin      bool
 	UserName     string
+	Password     string
 	UserId       string
 	ServiceToken string
+	DeviceId     string
 }
 
 func NewUser() *User {
@@ -43,7 +45,8 @@ func NewUser() *User {
 			CheckRedirect: func(req *http.Request, via []*http.Request) error {
 				return http.ErrUseLastResponse
 			},
-			Jar: jar,
+			Transport: zlog.HttpLoggerTransport,
+			Jar:       jar,
 		},
 	}
 	go user.autoRenewal()
@@ -71,26 +74,21 @@ func (u *User) autoRenewal() {
 }
 
 // 尝试使用保存的Token自动登录
-func (u *User) AutoLogin() error {
+func (u *User) autoLogin() error {
 	jar, err := cookiejar.New(nil)
 	if err != nil {
 		return err
 	}
 	var cookies []*http.Cookie
-	var (
-		cServiceToken = configs.Conf.Section("XIAOMI").Key("SERVICE_TOKEN").String()
-		cUserId       = configs.Conf.Section("XIAOMI").Key("USER_ID").String()
-		cUserName     = configs.Conf.Section("XIAOMI_ACCOUNT").Key("USERNAME").String()
-	)
 	serviceToken := &http.Cookie{
 		Name:   "serviceToken",
-		Value:  cServiceToken,
+		Value:  configs.Conf.ServiceToken,
 		Path:   "/",
 		Domain: "mi.com",
 	}
 	userId := &http.Cookie{
 		Name:   "userId",
-		Value:  cUserId,
+		Value:  configs.Conf.UserId,
 		Path:   "/",
 		Domain: "mi.com",
 	}
@@ -102,16 +100,15 @@ func (u *User) AutoLogin() error {
 	}
 	jar.SetCookies(parseUrl, cookies)
 	u.HttpClient.Jar = jar
-
 	result, err := u.CheckPhoneCode()
 	if err != nil {
 		return err
 	}
 	zlog.Info(fmt.Sprintf("check_phone_code: %s", result))
 	if result == "" {
-		u.UserId = cUserId
-		u.UserName = cUserName
-		u.ServiceToken = cServiceToken
+		u.UserId = configs.Conf.UserId
+		u.UserName = configs.Conf.Username
+		u.ServiceToken = configs.Conf.ServiceToken
 		u.IsLogin = true
 		return nil
 	} else {
@@ -119,36 +116,18 @@ func (u *User) AutoLogin() error {
 	}
 }
 
-// 输入账号密码登录
-func (u *User) Login(input bool) error {
-	var username string
-	var password string
-	var account = configs.Conf.Section("XIAOMI_ACCOUNT")
-	for {
-		if account.Key("USERNAME").String() != "" && !input {
-			username = account.Key("USERNAME").String()
-		} else {
-			username = utils.GetInput("账号")
-			if username == "" {
-				zlog.PrintError("账号不能为空")
-				continue
-			}
-		}
-	PASS:
-		if account.Key("PASSWORD").String() != "" && !input {
-			secretPwd, _ := base64.StdEncoding.DecodeString(account.Key("PASSWORD").String())
-			password, _ = utils.AesCBCDecrypt(secretPwd,
-				[]byte("inqH0kEHFvSKqPkR"), []byte("1234567891234500"))
-		} else {
-			password = utils.GetInputPwd("密码")
-			if len(password) < 6 {
-				zlog.PrintError("密码不能少于6位")
-				goto PASS
-			}
-		}
-		break
+// 登录
+func (u *User) Login() error {
+	err := u.autoLogin()
+	if err == nil {
+		return nil
 	}
-	err := u.serviceLogin()
+	zlog.Info(fmt.Sprintf("auto login failed: %s", err.Error()))
+	username, password := u.getConfNamePwd()
+	if username == "" || password == "" {
+		username, password = u.getInputNamePwd()
+	}
+	err = u.serviceLogin()
 	if err != nil {
 		return err
 	}
@@ -162,18 +141,16 @@ func (u *User) Login(input bool) error {
 	if err != nil {
 		return err
 	}
-	result, err := u.CheckPhoneCode()
+	location, err = u.CheckPhoneCode()
 	if err != nil {
 		return err
 	}
-	if result == "" {
-		return u.updateUserInfo(username, password)
-	}
-	err = u.SendPhoneCode(result)
-	if err == ErrorNotNeedSms {
-		println(222)
-		return u.updateUserInfo(username, password)
-	} else {
+	u.UserName = username
+	u.Password = password
+	// 如果结果不为空，需要手机验证码校验
+	if location != "" {
+		time.Sleep(time.Millisecond * 500)
+		err = u.SendPhoneCode(location)
 		if err != nil {
 			return err
 		}
@@ -181,21 +158,57 @@ func (u *User) Login(input bool) error {
 		if err != nil {
 			return err
 		}
-		result, err = u.CheckPhoneCode()
+		location, err = u.CheckPhoneCode()
 		if err != nil {
 			return err
 		}
-		if result == "" {
-			return u.updateUserInfo(username, password)
-		} else {
+		if location != "" {
 			return errors.New("登录失败，请重试！")
 		}
 	}
+	secretPwd, _ := utils.AesCBCEncrypt([]byte(u.Password), []byte("inqH0kEHFvSKqPkR"), []byte("1234567891234500"))
+	configs.Conf.Password = secretPwd
+	configs.Conf.Username = u.UserName
+	configs.Conf.UserId = u.UserId
+	configs.Conf.ServiceToken = u.ServiceToken
+	configs.Conf.DeviceId = u.DeviceId
+	configs.Conf.SaveToFile()
+	return nil
+}
+
+func (u *User) getConfNamePwd() (string, string) {
+	var username = configs.Conf.Username
+	var password = configs.Conf.Password
+	if password != "" {
+		secretPwd, err := base64.StdEncoding.DecodeString(password)
+		if err != nil {
+			password = ""
+		} else {
+			password, _ = utils.AesCBCDecrypt(secretPwd, []byte("inqH0kEHFvSKqPkR"), []byte("1234567891234500"))
+		}
+	}
+	return username, password
+}
+
+func (u *User) getInputNamePwd() (string, string) {
+	var username, password string
+	for {
+		username = utils.GetInput("账号")
+		if username == "" {
+			zlog.PrintError("账号不能为空")
+			continue
+		}
+		password = utils.GetInput("密码")
+		if password == "" {
+			zlog.PrintError("密码不能为空")
+			continue
+		}
+		break
+	}
+	return username, password
 }
 
 func (u *User) updateUserInfo(username, password string) error {
-	u.IsLogin = true
-	u.UserName = username
 	parseUrl, err := url.Parse(drive)
 	if err != nil {
 		return err
@@ -208,8 +221,13 @@ func (u *User) updateUserInfo(username, password string) error {
 		if v.Name == "serviceToken" {
 			u.ServiceToken = v.Value
 		}
+		if v.Name == "deviceId" {
+			u.DeviceId = v.Value
+		}
 	}
-	go saveAccountToFile(username, password)
+	u.IsLogin = true
+	u.UserName = username
+	u.Password = password
 	return nil
 }
 
@@ -218,9 +236,7 @@ func (u *User) serviceLogin() error {
 	if err != nil {
 		return err
 	}
-	var (
-		deviceId = configs.Conf.Section("XIAOMI").Key("DEVICE_ID").String()
-	)
+	deviceId := configs.Conf.DeviceId
 	if deviceId != "" {
 		var cookies []*http.Cookie
 		cookies = append(cookies, &http.Cookie{
@@ -236,7 +252,6 @@ func (u *User) serviceLogin() error {
 			Domain:  "xiaomi.com",
 			Expires: time.Now().AddDate(50, 0, 0),
 		})
-		u.updateCookies(xiaomi, cookies)
 	}
 	resp, err := u.HttpClient.Do(request)
 	if err != nil {
@@ -245,8 +260,6 @@ func (u *User) serviceLogin() error {
 	u.updateCookies(xiaomi, resp.Cookies())
 	return nil
 }
-
-var ErrorPwd = errors.New("登录校验失败")
 
 func (u *User) serviceLoginAuth(userName, password string) (string, error) {
 	var apiUrl = fmt.Sprintf(serviceLoginAuth, strconv.Itoa(int(time.Now().UnixNano()))[0:13])
@@ -260,7 +273,7 @@ func (u *User) serviceLoginAuth(userName, password string) (string, error) {
 	form.Add("user", userName)
 	form.Add("hash", strings.ToUpper(utils.MD5([]byte(password))))
 	form.Add("cc", "")
-	form.Add("log", `{"title":"dataCenterZone","message":"China"}{"title":"locale","message":"zh_CN"}{"title":"env","message":"release"}{"title":"browser","message":{"name":"Chrome","version":79}}{"title":"search","message":""}{"title":"outerlinkDone","message":"done"}{"title":"addInputChange","message":"userName"}{"title":"loginOrigin","message":"loginMain"}`)
+	form.Add("log", `{"title":"dataCenterZone","message":"China"}{"title":"locale","message":"zh_CN"}{"title":"env","message":"release"}{"title":"browser","message":{"name":"Chrome","version":85}}{"title":"search","message":""}{"title":"outerlinkDone","message":"done"}{"title":"addInputChange","message":"userName"}{"title":"loginOrigin","message":"loginMain"}`)
 	resp, err := u.HttpClient.PostForm(apiUrl, form)
 	if err != nil {
 		return "", nil
@@ -271,14 +284,11 @@ func (u *User) serviceLoginAuth(userName, password string) (string, error) {
 		return "", nil
 	}
 	u.updateCookies(xiaomi, resp.Cookies())
-
 	all = []byte(strings.Trim(string(all), "&&&START&&&"))
-
 	location := gjson.Get(string(all), "location").String()
 	if location == "" {
-		return "", ErrorPwd
+		return "", errors.New("登录校验失败")
 	}
-
 	return location, nil
 }
 
@@ -321,6 +331,9 @@ func (u *User) CheckPhoneCode() (string, error) {
 	if err != nil {
 		return "", err
 	}
+	if resp.StatusCode == http.StatusOK {
+		return "", nil
+	}
 	// 401表示无权限
 	if gjson.Get(string(all), "R").Int() == 401 {
 		return gjson.Get(string(all), "D").String(), nil
@@ -328,8 +341,6 @@ func (u *User) CheckPhoneCode() (string, error) {
 		return "", nil
 	}
 }
-
-var ErrorNotNeedSms = errors.New("not need SMS")
 
 func (u *User) SendPhoneCode(location string) error {
 	resp, err := u.HttpClient.Get(location)
@@ -345,7 +356,7 @@ func (u *User) SendPhoneCode(location string) error {
 	}
 	if strings.Contains(location, "i.mi.com") {
 		u.updateCookies(imi, resp.Cookies())
-		return ErrorNotNeedSms
+		return nil
 	}
 	u.updateCookies(xiaomi, resp.Cookies())
 
@@ -372,7 +383,6 @@ func (u *User) SendPhoneCode(location string) error {
 		}
 		return errors.New(gjson.Get(string(all), "description").String())
 	}
-
 	return nil
 }
 
@@ -450,44 +460,24 @@ func (u *User) updateCookies(domain string, newCookies []*http.Cookie) {
 		if !existed {
 			oldCookies = append(oldCookies, v)
 		}
-		if v.Name == "deviceId" {
-			go saveDeviceIdToFile(v)
-		}
 	}
 	var validCookies []*http.Cookie
 	for _, c := range oldCookies {
-		if c.Value != "EXPIRED" {
-			validCookies = append(validCookies, c)
+		if c.Value == "EXPIRED" {
+			continue
 		}
+		validCookies = append(validCookies, c)
 		// 更新配置文件
-		if c.Name == "userId" && c.Value != u.UserId {
-			configs.Conf.Section("XIAOMI").Key("USER_ID").SetValue(c.Value)
+		if c.Name == "userId" {
+			u.UserId = c.Value
 		}
-		if c.Name == "serviceToken" && c.Value != u.ServiceToken {
-			configs.Conf.Section("XIAOMI").Key("SERVICE_TOKEN").SetValue(c.Value)
+		if c.Name == "serviceToken" {
+			u.ServiceToken = c.Value
 		}
-		go configs.SaveToFile()
+		if c.Name == "deviceId" {
+			u.DeviceId = c.Value
+		}
 	}
 	jar.SetCookies(parseUrl, validCookies)
 	u.HttpClient.Jar = jar
-}
-
-func saveDeviceIdToFile(v *http.Cookie) {
-	deviceKey := configs.Conf.Section("XIAOMI").Key("DEVICE_ID")
-	deviceId := deviceKey.String()
-	if deviceId == "" {
-		deviceKey.SetValue(v.Value)
-	}
-	configs.SaveToFile()
-}
-
-func saveAccountToFile(username, password string) {
-	account := configs.Conf.Section("XIAOMI_ACCOUNT")
-	account.Key("USERNAME").SetValue(username)
-
-	secretPwd, _ := utils.AesCBCEncrypt([]byte(password),
-		[]byte("inqH0kEHFvSKqPkR"), []byte("1234567891234500"))
-
-	account.Key("PASSWORD").SetValue(secretPwd)
-	configs.SaveToFile()
 }

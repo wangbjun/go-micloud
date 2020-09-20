@@ -3,7 +3,6 @@ package command
 import (
 	"errors"
 	"github.com/urfave/cli/v2"
-	"go-micloud/internal/user"
 	"go-micloud/pkg/zlog"
 )
 
@@ -15,21 +14,12 @@ func (r *Command) Login() *cli.Command {
 			if r.FileApi.User.IsLogin {
 				return errors.New("您已登录，账号为：" + r.FileApi.User.UserName)
 			}
-			if r.FileApi.User.AutoLogin() != nil {
-				err := r.FileApi.User.Login(false)
-				if err != nil {
-					if err == user.ErrorPwd {
-						zlog.PrintError("账号或密码错误,请重新输入账号密码")
-						err := r.FileApi.User.Login(true)
-						if err != nil {
-							return err
-						}
-					} else {
-						return err
-					}
-				}
-				_ = r.List().Run(ctx)
+			err := r.FileApi.User.Login()
+			if err != nil {
+				zlog.PrintError("登录失败: " + err.Error())
+				return nil
 			}
+			_ = r.List().Run(ctx)
 			return nil
 		},
 	}

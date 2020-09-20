@@ -12,15 +12,11 @@ const base = "Go@MiCloud:"
 
 var CsLiner = Liner{liner.NewLiner(), base}
 
-var SysCommand = []string{"cd", "ls", "download", "upload", "login", "mkdir", "share", "tree", "rm"}
+var SysCommand = []string{"cd", "ls", "download", "upload", "login", "mkdir", "share", "tree", "rm", "jobs"}
 
 type Liner struct {
 	state  *liner.State
 	prefix string
-}
-
-func init() {
-	CsLiner.state.SetCtrlCAborts(true)
 }
 
 func (l *Liner) Prompt() (string, error) {

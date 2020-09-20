@@ -103,7 +103,7 @@ func Format(files []*file.File) {
 	fmt.Printf("total %d\n", len(files))
 	for _, v := range files {
 		if v.Type == "file" {
-			fmt.Printf("- | %-6s | %s | %s\n", humanize.Bytes(uint64(v.Size)), utils.FormatTimeInt(int64(v.CreateTime), true), v.Name)
+			fmt.Printf("- | %6s | %s | %s\n", humanize.Bytes(uint64(v.Size)), utils.FormatTimeInt(int64(v.CreateTime), true), v.Name)
 		} else {
 			fmt.Printf("d | ------ | %s | %s\n", utils.FormatTimeInt(int64(v.CreateTime), true), color.Blue(v.Name))
 		}

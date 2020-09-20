@@ -16,9 +16,11 @@ import (
 
 func main() {
 	httpApi := file.NewApi(user.NewUser())
-	if !userLogin(httpApi) {
+	if err := httpApi.User.Login(); err != nil {
+		zlog.PrintError("登录失败： " + err.Error())
 		return
 	}
+	zlog.PrintInfo("登录成功")
 	cmd := command.Command{
 		FileApi:    httpApi,
 		Folder:     folder.NewFolder(),
@@ -41,6 +43,7 @@ func main() {
 			cmd.Delete(),
 			cmd.MkDir(),
 			cmd.Tree(),
+			cmd.Jobs(),
 		},
 		CommandNotFound: func(c *cli.Context, command string) {
 			zlog.PrintError(fmt.Sprintf("命令[ %s ]不存在", command))
@@ -81,26 +84,5 @@ func initFolder(c command.Command) bool {
 		return false
 	}
 	folder.AddFolder(c.Folder, files)
-	return true
-}
-
-// 用户登录
-func userLogin(httpApi *file.Api) bool {
-	if httpApi.User.AutoLogin() == nil {
-		zlog.PrintInfo("自动登录成功！")
-		return true
-	}
-	err := httpApi.User.Login(false)
-	if err != nil {
-		if err == user.ErrorPwd {
-			zlog.PrintError("账号或密码错误,请重试！")
-			err = httpApi.User.Login(true)
-		}
-		if err != nil {
-			zlog.PrintError("登录失败：" + err.Error())
-			return false
-		}
-	}
-	zlog.PrintInfo("登录成功！")
 	return true
 }

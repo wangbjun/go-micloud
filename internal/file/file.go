@@ -59,12 +59,12 @@ func (api *Api) UploadFile(task *task) (string, error) {
 		return "", ErrorSizeTooBig
 	}
 
-	api.LogStatus(task, "计算文件sha1值")
+	task.LogStatus("计算文件哈希值")
 
 	fileSize := fileInfo.Size()
 	fileSha1 := utils.FilePathHash(task.FilePath, "sha1")
 
-	api.LogStatus(task, "计算文件分片信息")
+	task.LogStatus("计算文件分片")
 	//大于4MB需要分片
 	var blockInfos *[]BlockInfo
 	if fileSize > ChunkSize {
@@ -97,7 +97,7 @@ func (api *Api) UploadFile(task *task) (string, error) {
 	}
 	data, _ := json.Marshal(uploadJson)
 	//创建分片
-	task.StatusMsg = fmt.Sprintf("创建文件分片(%d)", len(*blockInfos))
+	task.StatusMsg = "创建文件分片"
 	resp, err := api.postForm(CreateFile, url.Values{
 		"data":         []string{string(data)},
 		"serviceToken": []string{api.User.ServiceToken},
@@ -119,8 +119,8 @@ func (api *Api) UploadFile(task *task) (string, error) {
 				Exists:   true,
 			},
 		}}
-		api.LogStatus(task, "此文件已存在，上传完成")
-		return api.createFile(task.ParentId, data)
+		task.LogStatus("文件已存在")
+		return api.createFile(task.TypeId, data)
 	} else {
 		//云盘不存在该文件
 		kss := gjson.Get(string(*resp), "data.storage.kss")
@@ -141,13 +141,13 @@ func (api *Api) UploadFile(task *task) (string, error) {
 		var i = 0
 		var commitMetas []map[string]string
 		for k, block := range blockMetas {
-			commitMeta, err := api.uploadBlock(k, apiNode, fileMeta, file, block)
+			commitMeta, err := api.uploadBlock(task, k, apiNode, fileMeta, file, block)
 			if err != nil {
 				return "", err
 			}
 			commitMetas = append(commitMetas, commitMeta)
 			i++
-			api.LogStatus(task, fmt.Sprintf("正在上传分片(%d/%d)", i, len(*blockInfos)))
+			task.LogStatus(fmt.Sprintf("上传分片(%d/%d)", i, len(*blockInfos)))
 		}
 		//最终完成上传
 		data := UploadJson{Content: UploadContent{
@@ -167,13 +167,9 @@ func (api *Api) UploadFile(task *task) (string, error) {
 				Exists:   false,
 			},
 		}}
-		return api.createFile(task.ParentId, data)
+		task.StatusMsg = "上传成功"
+		return api.createFile(task.TypeId, data)
 	}
-}
-
-func (api *Api) LogStatus(task *task, msg string) {
-	task.StatusMsg = msg
-	zlog.Info(fmt.Sprintf("[ %s ] %s", task.FilePath, msg))
 }
 
 //获取文件分片信息
@@ -207,7 +203,7 @@ func (api *Api) getFileBlocks(fileInfo os.FileInfo, filePath string) (*[]BlockIn
 }
 
 //上传文件分片
-func (api *Api) uploadBlock(num int, apiNode string, fileMeta string, file *os.File, block interface{}) (map[string]string, error) {
+func (api *Api) uploadBlock(task *task, num int, apiNode string, fileMeta string, file *os.File, block interface{}) (map[string]string, error) {
 	m, ok := (block).(gjson.Result)
 	if !ok {
 		return nil, errors.New("block info error")
@@ -244,6 +240,7 @@ func (api *Api) uploadBlock(num int, apiNode string, fileMeta string, file *os.F
 			return nil, errors.New("block not completed")
 		}
 		response.Body.Close()
+		task.CompleteSize += uint64(len(fileBlock))
 		return map[string]string{"commit_meta": gjson.Get(string(readAll), "commit_meta").String()}, nil
 	}
 }

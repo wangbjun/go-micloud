@@ -49,7 +49,7 @@ func (r *Command) download(fileInfo *file.File, dir string) error {
 		if err != nil {
 			return errors.New("获取目录信息失败")
 		}
-		if _, err := os.Stat(configs.WorkDir + "/" + dir); os.IsNotExist(err) {
+		if _, err := os.Stat(configs.Conf.WorkDir + "/" + dir); os.IsNotExist(err) {
 			err = os.Mkdir(dir, 0755)
 			if err != nil {
 				return errors.New("创建目录失败")
@@ -71,7 +71,7 @@ func (r *Command) download(fileInfo *file.File, dir string) error {
 			r.TaskManage.AddDownloadTask(fileInfo, dir)
 		}()
 		zlog.PrintInfo(fmt.Sprintf("添加下载任务: %s", dir+"/"+fileInfo.Name))
-		time.Sleep(time.Millisecond * 100)
+		time.Sleep(time.Millisecond * 10)
 	}
 	return nil
 }

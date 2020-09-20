@@ -17,7 +17,7 @@ func init() {
 	infoLevel := zap.LevelEnablerFunc(func(lvl zapcore.Level) bool {
 		return lvl >= zapcore.InfoLevel
 	})
-	logFile := configs.Conf.Section("APP").Key("LOG_FILE").String()
+	logFile := configs.Conf.LogFile
 	writer := zapcore.AddSync(&lumberjack.Logger{
 		Filename:   logFile,
 		MaxSize:    500, // megabytes
