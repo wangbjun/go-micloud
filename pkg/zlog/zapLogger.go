@@ -8,6 +8,7 @@ import (
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 	"gopkg.in/natefinch/lumberjack.v2"
+	"strings"
 	"time"
 )
 
@@ -42,6 +43,7 @@ func init() {
 	core := zapcore.NewTee(zapcore.NewCore(jsonEncoder, sync, infoLevel))
 	zapLogger = zap.New(core, zap.AddCaller(), zap.AddCallerSkip(1))
 	defer zapLogger.Sync()
+	zapLogger.Sugar().With("time", time.Now().Format(utils.YmdHis)).Info(strings.Repeat("-", 80))
 }
 
 func PrintInfo(msg string) {

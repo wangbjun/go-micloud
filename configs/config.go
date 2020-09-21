@@ -25,13 +25,9 @@ func init() {
 	if err != nil {
 		log.Panicf("用户目录不存在: %s\n", err.Error())
 	}
-	Conf.LogFile = "/tmp/micloud.log"
 	Conf.FilePath = userHomeDir + "/.micloud.json"
-	Conf.WorkDir, _ = os.Getwd()
-	// 配置文件不存在
-	if _, err := os.Stat(Conf.FilePath); os.IsNotExist(err) {
-		Conf.SaveToFile()
-	} else {
+	// 已经存在配置
+	if _, err := os.Stat(Conf.FilePath); err == nil {
 		file, err := os.Open(Conf.FilePath)
 		if err != nil {
 			log.Panicf("加载配置文件失败: %s", err.Error())
@@ -43,6 +39,11 @@ func init() {
 		}
 		file.Close()
 	}
+	if Conf.LogFile == "" {
+		Conf.LogFile = "/tmp/micloud.log"
+	}
+	Conf.WorkDir, _ = os.Getwd()
+	Conf.SaveToFile()
 }
 
 func (r *Config) SaveToFile() {

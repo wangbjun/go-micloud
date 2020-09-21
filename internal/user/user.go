@@ -67,6 +67,7 @@ func (u *User) autoRenewal() {
 				}
 				if len(resp.Cookies()) > 0 {
 					u.updateCookies(imi, resp.Cookies())
+					configs.Conf.ServiceToken = u.ServiceToken
 					configs.Conf.SaveToFile()
 				}
 			}
@@ -93,7 +94,13 @@ func (u *User) autoLogin() error {
 		Path:   "/",
 		Domain: "mi.com",
 	}
-	cookies = append(cookies, serviceToken, userId)
+	deviceId := &http.Cookie{
+		Name:   "deviceId",
+		Value:  configs.Conf.DeviceId,
+		Path:   "/",
+		Domain: "mi.com",
+	}
+	cookies = append(cookies, serviceToken, userId, deviceId)
 	parseUrl := &url.URL{
 		Scheme: "https",
 		Host:   "mi.com",
@@ -105,7 +112,6 @@ func (u *User) autoLogin() error {
 	if err != nil {
 		return err
 	}
-	zlog.Info(fmt.Sprintf("check_phone_code: %s", result))
 	if result == "" {
 		u.UserId = configs.Conf.UserId
 		u.UserName = configs.Conf.Username
@@ -123,7 +129,7 @@ func (u *User) Login(isInput bool) error {
 	if err == nil {
 		return nil
 	}
-	zlog.Info(fmt.Sprintf("auto login failed: %s", err.Error()))
+	zlog.Info(err.Error())
 	username, password := u.getConfNamePwd()
 	if username == "" || password == "" || isInput {
 		username, password = u.getInputNamePwd()
@@ -142,12 +148,23 @@ func (u *User) Login(isInput bool) error {
 	if err != nil {
 		return err
 	}
+	parseUrl, err := url.Parse(serviceLogin)
+	if err != nil {
+		return err
+	}
+	cookies := u.HttpClient.Jar.Cookies(parseUrl)
+	for _, v := range cookies {
+		if v.Name == "userId" {
+			u.UserId = v.Value
+		}
+		if v.Name == "serviceToken" {
+			u.ServiceToken = v.Value
+		}
+	}
 	location, err = u.CheckPhoneCode()
 	if err != nil {
 		return err
 	}
-	u.UserName = username
-	u.Password = password
 	// 如果结果不为空，需要手机验证码校验
 	if location != "" {
 		time.Sleep(time.Millisecond * 500)
@@ -167,6 +184,9 @@ func (u *User) Login(isInput bool) error {
 			return errors.New("登录失败，请重试！")
 		}
 	}
+	u.IsLogin = true
+	u.UserName = username
+	u.Password = password
 	secretPwd, _ := utils.AesCBCEncrypt([]byte(u.Password), []byte("inqH0kEHFvSKqPkR"), []byte("1234567891234500"))
 	configs.Conf.Password = secretPwd
 	configs.Conf.Username = u.UserName
@@ -242,7 +262,7 @@ func (u *User) serviceLogin() error {
 		var cookies []*http.Cookie
 		cookies = append(cookies, &http.Cookie{
 			Name:    "deviceId",
-			Value:   deviceId,
+			Value:   configs.Conf.DeviceId,
 			Path:    "/",
 			Domain:  "xiaomi.com",
 			Expires: time.Now().AddDate(50, 0, 0),
@@ -253,6 +273,7 @@ func (u *User) serviceLogin() error {
 			Domain:  "xiaomi.com",
 			Expires: time.Now().AddDate(50, 0, 0),
 		})
+		u.updateCookies(xiaomi, cookies)
 	}
 	resp, err := u.HttpClient.Do(request)
 	if err != nil {

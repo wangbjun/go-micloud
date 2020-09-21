@@ -12,7 +12,6 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
-	"unicode/utf8"
 )
 
 const (
@@ -186,13 +185,12 @@ func (r *TaskManage) ShowTask() {
 		goto END
 	}
 	fmt.Printf(strings.Repeat("-", 80) + "\n")
-	fmt.Printf("任务状态 |状态信息         |文件总大小 |已处理大小 |文件名\n")
+	fmt.Printf("任务状态 |状态信息 |文件总大小 |已处理大小 |文件名\n")
 	fmt.Printf(strings.Repeat("-", 80) + "\n")
 	sort.Sort(r.Tasks)
 	for k, v := range r.Tasks {
-		status := v.StatusMsg + strings.Repeat("  ", 8-utf8.RuneCountInString(v.StatusMsg))
-		fmt.Printf("%-5s |%s |%-10s |%-10s |%s\n", v.getStatusName(),
-			status, humanize.Bytes(uint64(v.FileSize)), humanize.Bytes(v.CompleteSize), v.FileName)
+		fmt.Printf("%-5s |%s |%-5s |%-5s |%s\n", v.getStatusName(),
+			v.StatusMsg, humanize.Bytes(uint64(v.FileSize)), humanize.Bytes(v.CompleteSize), v.FileName)
 		if k != r.Tasks.Len()-1 && v.Status != r.Tasks[k+1].Status {
 			fmt.Printf(strings.Repeat("-", 80) + "\n")
 		}
