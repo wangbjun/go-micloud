@@ -82,7 +82,6 @@ share <file>
 Go@MiCloud:~$ share wps-office_11.1.0.8722_amd64.deb
 获取分享链接成功(采用了短链接，有效期24小时): http://t.wibliss.com/BRfnl
 ```
----
 
 ### 七、rm
 删除文件或者目录，实际上放入回收站，如果想真正删除，可以登录小米云盘官方网页，在回收站里面删除。
