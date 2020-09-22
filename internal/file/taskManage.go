@@ -32,7 +32,7 @@ type tasks []*task
 
 type TaskManage struct {
 	Tasks        tasks
-	TotalNum     int64
+	Num          int64
 	DwloadingNum int64
 	UploadingNum int64
 	Uchan        chan *task
@@ -43,8 +43,8 @@ type TaskManage struct {
 func NewManage(fileApi *Api) *TaskManage {
 	tm := &TaskManage{
 		Tasks:   make(tasks, 0),
-		Uchan:   make(chan *task, 1000),
-		Dchan:   make(chan *task, 1000),
+		Uchan:   make(chan *task, 0),
+		Dchan:   make(chan *task, 0),
 		FileApi: fileApi,
 	}
 	go tm.Dispatch()
@@ -61,9 +61,8 @@ func (r *TaskManage) AddDownloadTask(file *File, dir string) {
 		Time:      time.Now(),
 		StatusMsg: "等待下载",
 	}
-	atomic.AddInt64(&r.TotalNum, 1)
-	r.Dchan <- task
 	r.Tasks = append(r.Tasks, task)
+	r.Dchan <- task
 }
 
 func (r *TaskManage) AddUploadTask(fileSize int64, filePath, parentId string) {
@@ -76,9 +75,8 @@ func (r *TaskManage) AddUploadTask(fileSize int64, filePath, parentId string) {
 		Time:      time.Now(),
 		StatusMsg: "等待上传",
 	}
-	atomic.AddInt64(&r.TotalNum, 1)
-	r.Uchan <- task
 	r.Tasks = append(r.Tasks, task)
+	r.Uchan <- task
 }
 
 func (r *TaskManage) Dispatch() {
@@ -86,9 +84,9 @@ func (r *TaskManage) Dispatch() {
 		for {
 			ticker := time.NewTicker(time.Second * 5)
 			<-ticker.C
-			zlog.Info(fmt.Sprintf("总任务 %d 个，已完成任务 %d 个, 处理中 %d（%d/%d）个",
-				r.TotalNum, int64(len(r.Tasks))-r.DwloadingNum-r.UploadingNum,
-				r.DwloadingNum+r.UploadingNum, r.UploadingNum, r.DwloadingNum))
+			zlog.Info(fmt.Sprintf("总任务 %d 个，已完成 %d 个, 待处理 %d 个，处理中 %d 个",
+				r.Num, r.Num-r.DwloadingNum-r.UploadingNum,
+				int64(len(r.Tasks))-r.Num, r.DwloadingNum+r.UploadingNum))
 		}
 	}()
 	go func() {
@@ -101,6 +99,7 @@ func (r *TaskManage) Dispatch() {
 			if task == nil || task.RetryTimes > 3 {
 				continue
 			}
+			atomic.AddInt64(&r.Num, 1)
 			atomic.AddInt64(&r.UploadingNum, 1)
 			task.Status = Uploading
 			go r.upload(task)
@@ -116,6 +115,7 @@ func (r *TaskManage) Dispatch() {
 			if task == nil || task.RetryTimes > 3 {
 				continue
 			}
+			atomic.AddInt64(&r.Num, 1)
 			atomic.AddInt64(&r.DwloadingNum, 1)
 			task.Status = Downloading
 			task.StatusMsg = "正在下载"
@@ -181,25 +181,28 @@ func (r *TaskManage) upload(task *task) {
 }
 
 func (r *TaskManage) ShowTask() {
+	var i = 1
 	if len(r.Tasks) == 0 {
 		goto END
 	}
 	fmt.Printf(strings.Repeat("-", 80) + "\n")
-	fmt.Printf("任务状态 |状态信息 |文件总大小 |已处理大小 |文件名\n")
+	fmt.Printf(" 序号 | 任务状态 | 状态信息 | 文件总大小 | 已处理大小 | 文件名\n")
 	fmt.Printf(strings.Repeat("-", 80) + "\n")
 	sort.Sort(r.Tasks)
 	for k, v := range r.Tasks {
-		fmt.Printf("%-5s |%s |%-5s |%-5s |%s\n", v.getStatusName(),
+		fmt.Printf(" %-3d| %-3s | %s | %-7s | %-7s | %s\n", i, v.getStatusName(),
 			v.StatusMsg, humanize.Bytes(uint64(v.FileSize)), humanize.Bytes(v.CompleteSize), v.FileName)
 		if k != r.Tasks.Len()-1 && v.Status != r.Tasks[k+1].Status {
+			i = 0
 			fmt.Printf(strings.Repeat("-", 80) + "\n")
 		}
+		i++
 	}
 	fmt.Printf(strings.Repeat("-", 80) + "\n")
 END:
 	fmt.Printf("总任务 %d 个，已完成 %d 个, 待处理 %d 个，处理中 %d 个\n",
-		r.TotalNum, int64(len(r.Tasks))-r.DwloadingNum-r.UploadingNum,
-		r.TotalNum-int64(len(r.Tasks)), r.DwloadingNum+r.UploadingNum)
+		r.Num, r.Num-r.DwloadingNum-r.UploadingNum,
+		int64(len(r.Tasks))-r.Num, r.DwloadingNum+r.UploadingNum)
 }
 
 // 失败重试，最多尝试3次

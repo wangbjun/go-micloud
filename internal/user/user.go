@@ -58,25 +58,116 @@ func (u *User) autoRenewal() {
 	for {
 		select {
 		case <-ticker.C:
-			if u.IsLogin {
-				var apiUrl = fmt.Sprintf(autoRenewal, strconv.Itoa(int(time.Now().UnixNano()))[0:13])
-				resp, err := u.HttpClient.Get(apiUrl)
-				if err != nil {
-					zlog.Error(fmt.Sprintf("auto_renewal error: %s", err.Error()))
-					return
-				}
-				if len(resp.Cookies()) > 0 {
-					u.updateCookies(imi, resp.Cookies())
-					configs.Conf.ServiceToken = u.ServiceToken
-					configs.Conf.SaveToFile()
-				}
+			if u.IsLogin == false {
+				break
+			}
+			var apiUrl = fmt.Sprintf(autoRenewal, strconv.Itoa(int(time.Now().UnixNano()))[0:13])
+			resp, err := u.HttpClient.Get(apiUrl)
+			if err != nil {
+				zlog.Error(fmt.Sprintf("auto_renewal error: %s", err.Error()))
+				return
+			}
+			if len(resp.Cookies()) > 0 {
+				u.updateCookies(imi, resp.Cookies())
+				configs.Conf.ServiceToken = u.ServiceToken
+				configs.Conf.SaveToFile()
 			}
 		}
 	}
 }
 
+// 登录
+func (u *User) Login(isInput bool) error {
+	err := u.autoLogin()
+	if err == nil {
+		zlog.Info("[login] autoLogin success")
+		return nil
+	}
+	zlog.Info("[login] autoLogin failed，begin login")
+	zlog.Info(err.Error())
+	username, password := u.getConfNamePwd()
+	if username == "" || password == "" || isInput {
+		username, password = u.getInputNamePwd()
+	}
+	zlog.Info("[login] serviceLogin")
+	err = u.serviceLogin()
+	if err != nil {
+		return err
+	}
+	time.Sleep(time.Millisecond * 500)
+	zlog.Info(fmt.Sprintf("[login] serviceLoginAuth: username = %s", username))
+	location, err := u.serviceLoginAuth(username, password)
+	if err != nil {
+		return err
+	}
+	time.Sleep(time.Millisecond * 500)
+	zlog.Info("[login] passServiceLogin: " + location)
+	err = u.passServiceLogin(location)
+	if err != nil {
+		return err
+	}
+	parseUrl, err := url.Parse(serviceLogin)
+	if err != nil {
+		return err
+	}
+	cookies := u.HttpClient.Jar.Cookies(parseUrl)
+	for _, v := range cookies {
+		if v.Name == "userId" {
+			u.UserId = v.Value
+		}
+		if v.Name == "serviceToken" {
+			u.ServiceToken = v.Value
+		}
+	}
+	zlog.Info("[login] checkPhoneCode: " + location)
+	location, err = u.checkPhoneCode()
+	if err != nil {
+		return err
+	}
+	if location == "" {
+		goto LoginSuccess
+	}
+	time.Sleep(time.Millisecond * 500)
+	zlog.Info("[login] sendPhoneCode: " + location)
+	err = u.sendPhoneCode(location)
+	if err != nil {
+		if err == ErrorNoSMS {
+			goto LoginSuccess
+		}
+		return err
+	}
+	zlog.Info("[login] verifyPhoneCode")
+	err = u.verifyPhoneCode(utils.GetInput("手机验证码"))
+	if err != nil {
+		return err
+	}
+	zlog.Info("[login] checkPhoneCode")
+	location, err = u.checkPhoneCode()
+	if err != nil {
+		return err
+	}
+	if location != "" {
+		return errors.New("登录失败，请重试！")
+	}
+
+LoginSuccess:
+	zlog.Info("[login] login success")
+	u.IsLogin = true
+	u.UserName = username
+	u.Password = password
+	secretPwd, _ := utils.AesCBCEncrypt([]byte(u.Password), []byte("inqH0kEHFvSKqPkR"), []byte("1234567891234500"))
+	configs.Conf.Password = secretPwd
+	configs.Conf.Username = u.UserName
+	configs.Conf.UserId = u.UserId
+	configs.Conf.ServiceToken = u.ServiceToken
+	configs.Conf.DeviceId = u.DeviceId
+	configs.Conf.SaveToFile()
+	return nil
+}
+
 // 尝试使用保存的Token自动登录
 func (u *User) autoLogin() error {
+	zlog.Info("[login] begin autoLogin")
 	jar, err := cookiejar.New(nil)
 	if err != nil {
 		return err
@@ -108,10 +199,11 @@ func (u *User) autoLogin() error {
 	}
 	jar.SetCookies(parseUrl, cookies)
 	u.HttpClient.Jar = jar
-	result, err := u.CheckPhoneCode()
+	result, err := u.checkPhoneCode()
 	if err != nil {
 		return err
 	}
+	zlog.Info("[login] checkPhoneCode： " + result)
 	if result == "" {
 		u.UserId = configs.Conf.UserId
 		u.UserName = configs.Conf.Username
@@ -121,80 +213,6 @@ func (u *User) autoLogin() error {
 	} else {
 		return errors.New("自动登录失败")
 	}
-}
-
-// 登录
-func (u *User) Login(isInput bool) error {
-	err := u.autoLogin()
-	if err == nil {
-		return nil
-	}
-	zlog.Info(err.Error())
-	username, password := u.getConfNamePwd()
-	if username == "" || password == "" || isInput {
-		username, password = u.getInputNamePwd()
-	}
-	err = u.serviceLogin()
-	if err != nil {
-		return err
-	}
-	time.Sleep(time.Millisecond * 500)
-	location, err := u.serviceLoginAuth(username, password)
-	if err != nil {
-		return err
-	}
-	time.Sleep(time.Millisecond * 500)
-	err = u.passServiceLogin(location)
-	if err != nil {
-		return err
-	}
-	parseUrl, err := url.Parse(serviceLogin)
-	if err != nil {
-		return err
-	}
-	cookies := u.HttpClient.Jar.Cookies(parseUrl)
-	for _, v := range cookies {
-		if v.Name == "userId" {
-			u.UserId = v.Value
-		}
-		if v.Name == "serviceToken" {
-			u.ServiceToken = v.Value
-		}
-	}
-	location, err = u.CheckPhoneCode()
-	if err != nil {
-		return err
-	}
-	// 如果结果不为空，需要手机验证码校验
-	if location != "" {
-		time.Sleep(time.Millisecond * 500)
-		err = u.SendPhoneCode(location)
-		if err != nil {
-			return err
-		}
-		err = u.VerifyPhoneCode(utils.GetInput("手机验证码"))
-		if err != nil {
-			return err
-		}
-		location, err = u.CheckPhoneCode()
-		if err != nil {
-			return err
-		}
-		if location != "" {
-			return errors.New("登录失败，请重试！")
-		}
-	}
-	u.IsLogin = true
-	u.UserName = username
-	u.Password = password
-	secretPwd, _ := utils.AesCBCEncrypt([]byte(u.Password), []byte("inqH0kEHFvSKqPkR"), []byte("1234567891234500"))
-	configs.Conf.Password = secretPwd
-	configs.Conf.Username = u.UserName
-	configs.Conf.UserId = u.UserId
-	configs.Conf.ServiceToken = u.ServiceToken
-	configs.Conf.DeviceId = u.DeviceId
-	configs.Conf.SaveToFile()
-	return nil
 }
 
 func (u *User) getConfNamePwd() (string, string) {
@@ -328,14 +346,11 @@ func (u *User) passServiceLogin(location string) error {
 		return err
 	}
 	u.updateCookies(xiaomi, resp.Cookies())
-
 	resp, err = u.HttpClient.Get(resp.Header.Get("Location"))
 	if err != nil {
 		return err
 	}
-
 	u.updateCookies(xiaomi, resp.Cookies())
-
 	resp, err = u.HttpClient.Get(resp.Header.Get("Location"))
 	if err != nil {
 		return err
@@ -343,7 +358,7 @@ func (u *User) passServiceLogin(location string) error {
 	return nil
 }
 
-func (u *User) CheckPhoneCode() (string, error) {
+func (u *User) checkPhoneCode() (string, error) {
 	resp, err := u.HttpClient.Get(drive)
 	if err != nil {
 		return "", err
@@ -364,7 +379,9 @@ func (u *User) CheckPhoneCode() (string, error) {
 	}
 }
 
-func (u *User) SendPhoneCode(location string) error {
+var ErrorNoSMS = errors.New("不需要短信")
+
+func (u *User) sendPhoneCode(location string) error {
 	resp, err := u.HttpClient.Get(location)
 	if err != nil {
 		return err
@@ -378,7 +395,7 @@ func (u *User) SendPhoneCode(location string) error {
 	}
 	if strings.Contains(location, "i.mi.com") {
 		u.updateCookies(imi, resp.Cookies())
-		return nil
+		return ErrorNoSMS
 	}
 	u.updateCookies(xiaomi, resp.Cookies())
 
@@ -408,7 +425,7 @@ func (u *User) SendPhoneCode(location string) error {
 	return nil
 }
 
-func (u *User) VerifyPhoneCode(code string) error {
+func (u *User) verifyPhoneCode(code string) error {
 	var apiUrl = fmt.Sprintf(verifyPhoneCode, strconv.Itoa(int(time.Now().UnixNano()))[0:13])
 	form := url.Values{}
 	form.Add("_json", "true")

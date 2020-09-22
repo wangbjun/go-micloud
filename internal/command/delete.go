@@ -28,7 +28,6 @@ func (r *Command) Delete() *cli.Command {
 			}
 			err := r.FileApi.DeleteFile(fileInfo.Id, fileInfo.Type)
 			if err != nil {
-				zlog.PrintError("删除失败：" + err.Error())
 				return err
 			}
 			zlog.PrintInfo(fmt.Sprintf("[ %s ]删除成功", fileName))
