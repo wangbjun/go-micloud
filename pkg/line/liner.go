@@ -10,13 +10,17 @@ import (
 
 const base = "Go@MiCloud:"
 
-var CsLiner = Liner{liner.NewLiner(), base}
-
-var SysCommand = []string{"cd", "ls", "download", "upload", "login", "mkdir", "share", "tree", "rm", "jobs"}
+var sysCommand = []string{"cd", "ls", "download", "upload", "login", "mkdir", "share", "tree", "rm", "jobs", "quit"}
 
 type Liner struct {
 	state  *liner.State
 	prefix string
+}
+
+func NewLiner() *Liner {
+	l := Liner{liner.NewLiner(), base}
+	l.state.SetCtrlCAborts(true)
+	return &l
 }
 
 func (l *Liner) Prompt() (string, error) {
@@ -48,7 +52,7 @@ func (l *Liner) SetWorldCompleter(words []string) {
 		}
 		var candidates []string
 		if command == "" {
-			candidates = SysCommand
+			candidates = sysCommand
 		} else if isSysCommand(command) {
 			if command == "upload" {
 				var dir string
@@ -83,7 +87,7 @@ func (l *Liner) SetWorldCompleter(words []string) {
 				}
 			}
 		} else {
-			for _, k := range SysCommand {
+			for _, k := range sysCommand {
 				if strings.HasPrefix(strings.ToLower(k), strings.ToLower(prefix)) {
 					candidates = append(candidates, strings.ReplaceAll(k, prefix, "")+" ")
 				}
@@ -94,7 +98,7 @@ func (l *Liner) SetWorldCompleter(words []string) {
 }
 
 func isSysCommand(cmd string) bool {
-	for _, v := range SysCommand {
+	for _, v := range sysCommand {
 		if v == cmd {
 			return true
 		}

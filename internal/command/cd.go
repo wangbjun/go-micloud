@@ -4,6 +4,8 @@ import (
 	"github.com/urfave/cli/v2"
 	"go-micloud/internal/file"
 	"go-micloud/internal/folder"
+	"go-micloud/pkg/line"
+	"go-micloud/pkg/zlog"
 	"strings"
 )
 
@@ -11,6 +13,7 @@ type Command struct {
 	FileApi    *file.Api
 	Folder     *folder.Folder
 	TaskManage *file.TaskManage
+	Liner      *line.Liner
 }
 
 func (r *Command) Cd() *cli.Command {
@@ -22,7 +25,7 @@ func (r *Command) Cd() *cli.Command {
 			if strings.Trim(dirName, " ") == "/" || strings.Trim(dirName, " ") == "" {
 				dirName = "/"
 			}
-			err := folder.ChangeFolder(r.Folder, dirName)
+			err := r.Folder.ChangeFolder(dirName)
 			if err != nil {
 				return err
 			}
@@ -30,8 +33,50 @@ func (r *Command) Cd() *cli.Command {
 			if err != nil {
 				return err
 			}
-			folder.AddFolder(r.Folder, files)
+			r.Folder.AddFolder(files)
+			r.setUpWordCompleter(files)
+			r.setUpLinePrefix(r.Folder.Cursor)
 			return nil
 		},
 	}
+}
+
+// 初始化根目录
+func (r *Command) InitRoot() error {
+	files, err := r.FileApi.GetFolder("0")
+	if err != nil {
+		zlog.PrintError(err.Error())
+		return err
+	}
+	r.Folder.AddFolder(files)
+	r.setUpWordCompleter(files)
+	return nil
+}
+
+// 设置Tab补全提示
+func (r *Command) setUpWordCompleter(files []*file.File) {
+	var completerWord []string
+	for _, f := range files {
+		completerWord = append(completerWord, f.Name)
+	}
+	r.Liner.SetWorldCompleter(completerWord)
+}
+
+// 设置命令行前缀
+func (r *Command) setUpLinePrefix(cursor *file.File) {
+	var (
+		names []string
+		c     = cursor
+	)
+	for c != nil {
+		if c.Name != "/" {
+			names = append(names, c.Name)
+		}
+		c = c.Parent
+	}
+	var path string
+	for i := len(names); i > 0; i-- {
+		path = path + "/" + names[i-1]
+	}
+	r.Liner.SetUpPrefix(strings.ReplaceAll(path, "//", "/"))
 }

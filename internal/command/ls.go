@@ -2,7 +2,6 @@ package command
 
 import (
 	"github.com/urfave/cli/v2"
-	"go-micloud/internal/folder"
 )
 
 func (r *Command) List() *cli.Command {
@@ -14,8 +13,9 @@ func (r *Command) List() *cli.Command {
 			if err != nil {
 				return err
 			}
-			folder.AddFolder(r.Folder, files)
-			folder.Format(r.Folder.Cursor.Child)
+			r.Folder.AddFolder(files)
+			r.Folder.Format()
+			r.setUpWordCompleter(files)
 			return nil
 		},
 	}

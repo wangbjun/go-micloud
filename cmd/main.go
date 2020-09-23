@@ -25,8 +25,10 @@ func main() {
 		FileApi:    httpApi,
 		Folder:     folder.NewFolder(),
 		TaskManage: file.NewManage(httpApi),
+		Liner:      line.NewLiner(),
 	}
-	if !initFolder(cmd) {
+	if err := cmd.InitRoot(); err != nil {
+		zlog.PrintError("初始化根目录失败： " + err.Error())
 		return
 	}
 	app := &cli.App{
@@ -44,45 +46,35 @@ func main() {
 			cmd.MkDir(),
 			cmd.Tree(),
 			cmd.Jobs(),
+			cmd.Quit(),
 		},
 		CommandNotFound: func(c *cli.Context, command string) {
 			zlog.PrintError(fmt.Sprintf("命令[ %s ]不存在", command))
 		},
 	}
 	for {
-		commandLine, err := line.CsLiner.Prompt()
+		commandLine, err := cmd.Liner.Prompt()
 		if err != nil {
 			if err == liner.ErrPromptAborted || err == io.EOF {
-				_ = line.CsLiner.Close()
+				_ = cmd.Liner.Close()
 				println("exit")
 				return
 			}
 			zlog.PrintError(fmt.Sprintf("命令键入错误： %s", err.Error()))
 			continue
 		}
-		var cmd = commandLine
+		var input = commandLine
 		var argument = ""
 		if strings.Contains(commandLine, " ") {
 			i := strings.Index(commandLine, " ")
-			cmd = commandLine[0:i]
+			input = commandLine[0:i]
 			argument = commandLine[i+1:]
 		}
-		err = app.Run([]string{app.Name, cmd, argument})
+		err = app.Run([]string{app.Name, input, argument})
 		if err != nil {
 			zlog.PrintError(err.Error())
 			continue
 		}
-		line.CsLiner.AppendHistory(commandLine)
+		cmd.Liner.AppendHistory(commandLine)
 	}
-}
-
-// 初始化根目录
-func initFolder(c command.Command) bool {
-	files, err := c.FileApi.GetFolder("0")
-	if err != nil {
-		zlog.PrintError(err.Error())
-		return false
-	}
-	folder.AddFolder(c.Folder, files)
-	return true
 }
