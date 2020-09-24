@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/urfave/cli/v2"
 	"go-micloud/configs"
-	"go-micloud/internal/file"
+	"go-micloud/internal/api"
 	"go-micloud/pkg/zlog"
 	"os"
 	"time"
@@ -20,7 +20,7 @@ func (r *Command) Download() *cli.Command {
 			if fileName == "" {
 				return errors.New("缺少参数")
 			}
-			var fileInfo *file.File
+			var fileInfo *api.File
 			for _, f := range r.Folder.Cursor.Child {
 				if f.Name == fileName {
 					fileInfo = f
@@ -43,7 +43,7 @@ func (r *Command) Download() *cli.Command {
 	}
 }
 
-func (r *Command) download(fileInfo *file.File, dir string) error {
+func (r *Command) download(fileInfo *api.File, dir string) error {
 	if fileInfo.Type == "folder" {
 		files, err := r.FileApi.GetFolder(fileInfo.Id)
 		if err != nil {

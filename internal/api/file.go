@@ -1,4 +1,4 @@
-package file
+package api
 
 import (
 	"encoding/json"
@@ -49,7 +49,7 @@ func (api *Api) GetFile(id string) (io.Reader, error) {
 }
 
 //上传文件
-func (api *Api) UploadFile(task *task) (string, error) {
+func (api *Api) UploadFile(task *Task) (string, error) {
 	fileInfo, err := os.Stat(task.FilePath)
 	if err != nil {
 		return "", err
@@ -203,7 +203,7 @@ func (api *Api) getFileBlocks(fileInfo os.FileInfo, filePath string) (*[]BlockIn
 }
 
 //上传文件分片
-func (api *Api) uploadBlock(task *task, num int, apiNode string, fileMeta string, file *os.File, block interface{}) (map[string]string, error) {
+func (api *Api) uploadBlock(task *Task, num int, apiNode string, fileMeta string, file *os.File, block interface{}) (map[string]string, error) {
 	m, ok := (block).(gjson.Result)
 	if !ok {
 		return nil, errors.New("block info error")

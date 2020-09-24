@@ -38,7 +38,7 @@ type User struct {
 	DeviceId     string
 }
 
-func NewUser() *User {
+func New() *User {
 	var jar, _ = cookiejar.New(nil)
 	user := User{
 		HttpClient: &http.Client{

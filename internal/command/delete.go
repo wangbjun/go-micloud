@@ -1,10 +1,10 @@
 package command
 
 import (
+	"errors"
 	"fmt"
-	"github.com/pkg/errors"
 	"github.com/urfave/cli/v2"
-	"go-micloud/internal/file"
+	"go-micloud/internal/api"
 	"go-micloud/pkg/zlog"
 )
 
@@ -17,7 +17,7 @@ func (r *Command) Delete() *cli.Command {
 			if fileName == "" {
 				return errors.New("缺少参数")
 			}
-			var fileInfo *file.File
+			var fileInfo *api.File
 			for _, f := range r.Folder.Cursor.Child {
 				if f.Name == fileName {
 					fileInfo = f

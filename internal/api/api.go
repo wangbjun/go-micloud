@@ -1,4 +1,4 @@
-package file
+package api
 
 import (
 	"errors"
@@ -23,7 +23,7 @@ type Api struct {
 	User *user.User
 }
 
-func NewApi(user *user.User) *Api {
+func New(user *user.User) *Api {
 	api := Api{
 		User: user,
 	}

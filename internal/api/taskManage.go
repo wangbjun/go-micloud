@@ -1,4 +1,4 @@
-package file
+package api
 
 import (
 	"fmt"
@@ -28,31 +28,31 @@ const UConcurrentNum = 5
 // 下载并发数
 const DConcurrentNum = 10
 
-type tasks []*task
+type tasks []*Task
 
-type TaskManage struct {
+type Manager struct {
 	Tasks        tasks
 	Num          int64
 	DwloadingNum int64
 	UploadingNum int64
-	Uchan        chan *task
-	Dchan        chan *task
+	Uchan        chan *Task
+	Dchan        chan *Task
 	FileApi      *Api
 }
 
-func NewManage(fileApi *Api) *TaskManage {
-	tm := &TaskManage{
+func NewManager(fileApi *Api) *Manager {
+	tm := &Manager{
 		Tasks:   make(tasks, 0),
-		Uchan:   make(chan *task, 0),
-		Dchan:   make(chan *task, 0),
+		Uchan:   make(chan *Task, 0),
+		Dchan:   make(chan *Task, 0),
 		FileApi: fileApi,
 	}
 	go tm.Dispatch()
 	return tm
 }
 
-func (r *TaskManage) AddDownloadTask(file *File, dir string) {
-	task := &task{
+func (r *Manager) AddDownloadTask(file *File, dir string) {
+	task := &Task{
 		Type:      TypeDownload,
 		TypeId:    file.Id,
 		FileName:  file.Name,
@@ -65,8 +65,8 @@ func (r *TaskManage) AddDownloadTask(file *File, dir string) {
 	r.Dchan <- task
 }
 
-func (r *TaskManage) AddUploadTask(fileSize int64, filePath, parentId string) {
-	task := &task{
+func (r *Manager) AddUploadTask(fileSize int64, filePath, parentId string) {
+	task := &Task{
 		Type:      TypeUpload,
 		TypeId:    parentId,
 		FileName:  path.Base(filePath),
@@ -79,7 +79,7 @@ func (r *TaskManage) AddUploadTask(fileSize int64, filePath, parentId string) {
 	r.Uchan <- task
 }
 
-func (r *TaskManage) Dispatch() {
+func (r *Manager) Dispatch() {
 	go func() {
 		for {
 			ticker := time.NewTicker(time.Second * 5)
@@ -124,7 +124,7 @@ func (r *TaskManage) Dispatch() {
 	}()
 }
 
-func (r *TaskManage) download(task *task) {
+func (r *Manager) download(task *Task) {
 	defer func() {
 		atomic.AddInt64(&r.DwloadingNum, -1)
 	}()
@@ -156,7 +156,7 @@ func (r *TaskManage) download(task *task) {
 	return
 }
 
-func (r *TaskManage) upload(task *task) {
+func (r *Manager) upload(task *Task) {
 	defer func() {
 		atomic.AddInt64(&r.UploadingNum, -1)
 	}()
@@ -180,7 +180,7 @@ func (r *TaskManage) upload(task *task) {
 	return
 }
 
-func (r *TaskManage) ShowTask() {
+func (r *Manager) ShowTask() {
 	var i = 1
 	if len(r.Tasks) == 0 {
 		goto END
@@ -206,7 +206,7 @@ END:
 }
 
 // 失败重试，最多尝试3次
-func (r *TaskManage) failed(task *task, msg string) {
+func (r *Manager) failed(task *Task, msg string) {
 	zlog.Error(fmt.Sprintf("文件 [%s] 下载失败，开始重试，Error: %s", task.FileName, msg))
 	task.Time = time.Now()
 	task.Status = Failed

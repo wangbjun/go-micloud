@@ -1,10 +1,9 @@
-package folder
+package api
 
 import (
 	"errors"
 	"fmt"
 	"github.com/dustin/go-humanize"
-	"go-micloud/internal/file"
 	"go-micloud/pkg/color"
 	"go-micloud/pkg/utils"
 	"strings"
@@ -16,12 +15,12 @@ const (
 )
 
 type Folder struct {
-	Cursor *file.File
-	Root   *file.File
+	Cursor *File
+	Root   *File
 }
 
 func NewFolder() *Folder {
-	base := &file.File{
+	base := &File{
 		Name:     "/",
 		Id:       "0",
 		Type:     Tfolder,
@@ -36,7 +35,7 @@ func NewFolder() *Folder {
 }
 
 // 打印树型目录结构
-func (r *Folder) PrintFolder(root *file.File, level int) {
+func (r *Folder) PrintFolder(root *File, level int) {
 	if level > 0 {
 		fmt.Println(strings.Repeat("│   ", level-1) + strings.Repeat("├── ", 1) + root.Name)
 	} else {
@@ -77,7 +76,7 @@ func (r *Folder) ChangeFolder(name string) error {
 	return nil
 }
 
-func (r *Folder) AddFolder(files []*file.File) {
+func (r *Folder) AddFolder(files []*File) {
 	if r.Cursor.Name == "/" {
 		r.Cursor = r.Root
 	}

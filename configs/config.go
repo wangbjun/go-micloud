@@ -2,12 +2,15 @@ package configs
 
 import (
 	"encoding/json"
+	"fmt"
+	"go-micloud/pkg/utils"
 	"io/ioutil"
 	"log"
 	"os"
+	"time"
 )
 
-var Conf = new(Config)
+var Conf *Config
 
 type Config struct {
 	FilePath     string `json:"file_path"`
@@ -18,40 +21,40 @@ type Config struct {
 	Password     string `json:"password"`
 	WorkDir      string `json:"work_dir"`
 	LogFile      string `json:"log_file"`
+	UpdatedAt    string `json:"update_at"`
 }
 
-func init() {
-	userHomeDir, err := os.UserHomeDir()
-	if err != nil {
-		log.Panicf("用户目录不存在: %s\n", err.Error())
-	}
-	Conf.FilePath = userHomeDir + "/.micloud.json"
-	// 已经存在配置
-	if _, err := os.Stat(Conf.FilePath); err == nil {
-		file, err := os.Open(Conf.FilePath)
+func Init(path string) error {
+	conf := new(Config)
+	conf.FilePath = path
+	if _, err := os.Stat(path); err == nil {
+		file, err := os.Open(path)
 		if err != nil {
-			log.Panicf("加载配置文件失败: %s", err.Error())
+			return fmt.Errorf("打开配置文件失败：%w", err)
 		}
-		all, _ := ioutil.ReadAll(file)
-		err = json.Unmarshal(all, &Conf)
+		all, err := ioutil.ReadAll(file)
 		if err != nil {
-			log.Panicf("解析配置文件失败: %s", err.Error())
+			return fmt.Errorf("读取配置文件失败：%w", err)
+		}
+		err = json.Unmarshal(all, &conf)
+		if err != nil {
+			return fmt.Errorf("解析配置文件失败：%w", err)
 		}
 		file.Close()
 	}
-	if Conf.LogFile == "" {
-		Conf.LogFile = "/tmp/micloud.log"
-	}
-	Conf.WorkDir, _ = os.Getwd()
-	Conf.SaveToFile()
+	conf.WorkDir, _ = os.Getwd()
+	conf.SaveToFile()
+	Conf = conf
+	return nil
 }
 
 func (r *Config) SaveToFile() {
 	file, err := os.Create(r.FilePath)
 	if err != nil {
-		log.Printf("加载配置文件失败: %s", err.Error())
+		log.Printf("创建配置文件失败: %s", err.Error())
 		return
 	}
+	r.UpdatedAt = time.Now().Format(utils.YmdHis)
 	data, err := json.MarshalIndent(r, "", "  ")
 	if err != nil {
 		log.Printf("序列化配置文件失败: %s", err.Error())

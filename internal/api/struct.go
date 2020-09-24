@@ -1,4 +1,4 @@
-package file
+package api
 
 type File struct {
 	Sha1       string

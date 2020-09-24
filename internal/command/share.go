@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/tidwall/gjson"
 	"github.com/urfave/cli/v2"
-	"go-micloud/internal/file"
+	"go-micloud/internal/api"
 	"go-micloud/pkg/zlog"
 	"io/ioutil"
 	"net/http"
@@ -23,7 +23,7 @@ func (r *Command) Share() *cli.Command {
 				return errors.New("缺少参数")
 			}
 
-			var fileInfo *file.File
+			var fileInfo *api.File
 			for _, f := range r.Folder.Cursor.Child {
 				if f.Name == fileName {
 					fileInfo = f

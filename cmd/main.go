@@ -4,18 +4,31 @@ import (
 	"fmt"
 	"github.com/peterh/liner"
 	"github.com/urfave/cli/v2"
+	"go-micloud/configs"
+	"go-micloud/internal/api"
 	"go-micloud/internal/command"
-	"go-micloud/internal/file"
-	"go-micloud/internal/folder"
 	"go-micloud/internal/user"
 	"go-micloud/pkg/line"
 	"go-micloud/pkg/zlog"
 	"io"
+	"log"
+	"os"
 	"strings"
 )
 
 func main() {
-	httpApi := file.NewApi(user.NewUser())
+	userHomeDir, err := os.UserHomeDir()
+	if err != nil {
+		log.Panicf("用户目录不存在: %s\n", err.Error())
+	}
+	err = configs.Init(userHomeDir + "/.micloud.json")
+	if err != nil {
+		log.Panic(err.Error())
+	}
+	// 日志初始化
+	zlog.Init(configs.Conf.LogFile)
+	// 用户登录
+	httpApi := api.New(user.New())
 	if err := httpApi.User.Login(false); err != nil {
 		zlog.PrintError("登录失败： " + err.Error())
 		return
@@ -23,8 +36,8 @@ func main() {
 	zlog.PrintInfo("登录成功")
 	cmd := command.Command{
 		FileApi:    httpApi,
-		Folder:     folder.NewFolder(),
-		TaskManage: file.NewManage(httpApi),
+		Folder:     api.NewFolder(),
+		TaskManage: api.NewManager(httpApi),
 		Liner:      line.NewLiner(),
 	}
 	if err := cmd.InitRoot(); err != nil {

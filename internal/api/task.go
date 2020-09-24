@@ -1,4 +1,4 @@
-package file
+package api
 
 import (
 	"fmt"
@@ -11,7 +11,7 @@ const (
 	TypeUpload
 )
 
-type task struct {
+type Task struct {
 	Type         int
 	TypeId       string // 上传的父Id|下载的文件Id
 	FileName     string
@@ -25,7 +25,7 @@ type task struct {
 	RetryTimes   int // 重试次数
 }
 
-func (t *task) getStatusName() string {
+func (t *Task) getStatusName() string {
 	switch t.Status {
 	case Waiting:
 		return "待处理"
@@ -42,12 +42,12 @@ func (t *task) getStatusName() string {
 	}
 }
 
-func (t *task) LogStatus(msg string) {
+func (t *Task) LogStatus(msg string) {
 	t.StatusMsg = msg
 	zlog.Info(fmt.Sprintf("[ %s ] %s", t.FileName, msg))
 }
 
-func (t *task) Write(p []byte) (int, error) {
+func (t *Task) Write(p []byte) (int, error) {
 	n := len(p)
 	t.CompleteSize += uint64(n)
 	return n, nil

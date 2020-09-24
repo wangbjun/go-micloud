@@ -2,17 +2,16 @@ package command
 
 import (
 	"github.com/urfave/cli/v2"
-	"go-micloud/internal/file"
-	"go-micloud/internal/folder"
+	"go-micloud/internal/api"
 	"go-micloud/pkg/line"
 	"go-micloud/pkg/zlog"
 	"strings"
 )
 
 type Command struct {
-	FileApi    *file.Api
-	Folder     *folder.Folder
-	TaskManage *file.TaskManage
+	FileApi    *api.Api
+	Folder     *api.Folder
+	TaskManage *api.Manager
 	Liner      *line.Liner
 }
 
@@ -54,7 +53,7 @@ func (r *Command) InitRoot() error {
 }
 
 // 设置Tab补全提示
-func (r *Command) setUpWordCompleter(files []*file.File) {
+func (r *Command) setUpWordCompleter(files []*api.File) {
 	var completerWord []string
 	for _, f := range files {
 		completerWord = append(completerWord, f.Name)
@@ -63,7 +62,7 @@ func (r *Command) setUpWordCompleter(files []*file.File) {
 }
 
 // 设置命令行前缀
-func (r *Command) setUpLinePrefix(cursor *file.File) {
+func (r *Command) setUpLinePrefix(cursor *api.File) {
 	var (
 		names []string
 		c     = cursor

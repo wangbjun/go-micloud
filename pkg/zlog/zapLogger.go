@@ -2,7 +2,6 @@ package zlog
 
 import (
 	"fmt"
-	"go-micloud/configs"
 	"go-micloud/pkg/color"
 	"go-micloud/pkg/utils"
 	"go.uber.org/zap"
@@ -14,11 +13,10 @@ import (
 
 var zapLogger *zap.Logger
 
-func init() {
+func Init(logFile string) {
 	infoLevel := zap.LevelEnablerFunc(func(lvl zapcore.Level) bool {
 		return lvl >= zapcore.InfoLevel
 	})
-	logFile := configs.Conf.LogFile
 	writer := zapcore.AddSync(&lumberjack.Logger{
 		Filename:   logFile,
 		MaxSize:    500, // megabytes
@@ -27,7 +25,6 @@ func init() {
 		LocalTime:  true,
 	})
 	sync := zapcore.AddSync(writer)
-
 	jsonEncoder := zapcore.NewJSONEncoder(zapcore.EncoderConfig{
 		LevelKey:       "level",
 		NameKey:        "name",
