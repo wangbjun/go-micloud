@@ -17,6 +17,10 @@ const (
 	DeleteFiles  = BaseUri + "/drive/v2/user/records/filemanager"
 	GetFolders   = BaseUri + "/drive/user/folders/%s/children"
 	CreateFolder = BaseUri + "/drive/v2/user/folders/create"
+	GetAlbums    = BaseUri + "/gallery/user/album/list?ts=%d&pageNum=0&pageSize=50&isShared=false"
+	GetVideo     = BaseUri + "/gallery/user/album/video?ts=%d&isShared=false"
+	GetPhotos    = BaseUri + "/gallery/user/galleries?ts=%d&pageNum=%d&pageSize=100&albumId=%s"
+	GetPhoto     = BaseUri + "/gallery/storage?ts=%d&id=%s&callBack=callback"
 )
 
 type Api struct {

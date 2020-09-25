@@ -46,7 +46,7 @@ func main() {
 	}
 	app := &cli.App{
 		Name:    "Go-MiCloud",
-		Usage:   "MiCloud Third Party Console Client Written By Golang",
+		Usage:   "MiCloud Third Party Console Client Written In Golang",
 		Version: "1.2",
 		Commands: []*cli.Command{
 			cmd.Login(),
@@ -60,6 +60,8 @@ func main() {
 			cmd.Tree(),
 			cmd.Jobs(),
 			cmd.Quit(),
+			cmd.ListAlbum(),
+			cmd.DownloadAlbum(),
 		},
 		CommandNotFound: func(c *cli.Context, command string) {
 			zlog.PrintError(fmt.Sprintf("命令[ %s ]不存在", command))

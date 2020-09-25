@@ -8,6 +8,7 @@ import (
 
 const (
 	TypeDownload = iota
+	TypeDownloadAlbum
 	TypeUpload
 )
 

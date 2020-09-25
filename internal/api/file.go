@@ -119,7 +119,7 @@ func (api *Api) UploadFile(task *Task) (string, error) {
 				Exists:   true,
 			},
 		}}
-		task.LogStatus("文件已存在")
+		task.LogStatus("上传成功")
 		return api.createFile(task.TypeId, data)
 	} else {
 		//云盘不存在该文件

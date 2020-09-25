@@ -10,7 +10,8 @@ import (
 
 const base = "Go@MiCloud:"
 
-var sysCommand = []string{"cd", "ls", "download", "upload", "login", "mkdir", "share", "tree", "rm", "jobs", "quit"}
+var sysCommand = []string{"cd", "ls", "download", "upload", "login", "mkdir", "share", "tree", "rm",
+	"jobs", "quit", "lsAlbum", "downloadAlbum"}
 
 type Liner struct {
 	state  *liner.State

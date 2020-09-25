@@ -68,7 +68,7 @@ func (r *Command) download(fileInfo *api.File, dir string) error {
 		}
 	} else {
 		go func() {
-			r.TaskManage.AddDownloadTask(fileInfo, dir)
+			r.TaskManage.AddDownloadTask(fileInfo, dir, api.TypeDownload)
 		}()
 		zlog.PrintInfo(fmt.Sprintf("添加下载任务: %s", dir+"/"+fileInfo.Name))
 		time.Sleep(time.Millisecond * 10)

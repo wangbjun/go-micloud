@@ -26,7 +26,7 @@ const (
 const UConcurrentNum = 5
 
 // 下载并发数
-const DConcurrentNum = 10
+const DConcurrentNum = 20
 
 type tasks []*Task
 
@@ -51,9 +51,9 @@ func NewManager(fileApi *Api) *Manager {
 	return tm
 }
 
-func (r *Manager) AddDownloadTask(file *File, dir string) {
+func (r *Manager) AddDownloadTask(file *File, dir string, tp int) {
 	task := &Task{
-		Type:      TypeDownload,
+		Type:      tp,
 		TypeId:    file.Id,
 		FileName:  file.Name,
 		FileSize:  file.Size,
@@ -99,7 +99,9 @@ func (r *Manager) Dispatch() {
 			if task == nil || task.RetryTimes > 3 {
 				continue
 			}
-			atomic.AddInt64(&r.Num, 1)
+			if task.RetryTimes == 0 {
+				atomic.AddInt64(&r.Num, 1)
+			}
 			atomic.AddInt64(&r.UploadingNum, 1)
 			task.Status = Uploading
 			go r.upload(task)
@@ -115,7 +117,9 @@ func (r *Manager) Dispatch() {
 			if task == nil || task.RetryTimes > 3 {
 				continue
 			}
-			atomic.AddInt64(&r.Num, 1)
+			if task.RetryTimes == 0 {
+				atomic.AddInt64(&r.Num, 1)
+			}
 			atomic.AddInt64(&r.DwloadingNum, 1)
 			task.Status = Downloading
 			task.StatusMsg = "正在下载"
@@ -135,14 +139,20 @@ func (r *Manager) download(task *Task) {
 		task.Status = Succeeded
 		return
 	}
+	var err error
+	var reader io.Reader
+	if task.Type == TypeDownload {
+		reader, err = r.FileApi.GetFile(task.TypeId)
+	} else if task.Type == TypeDownloadAlbum {
+		reader, err = r.FileApi.GetPhoto(task.TypeId)
+	}
+	if err != nil {
+		r.failed(task, "文件获取失败： "+err.Error())
+		return
+	}
 	openFile, err := os.Create(filePath)
 	if err != nil {
 		r.failed(task, "文件创建失败： "+err.Error())
-		return
-	}
-	reader, err := r.FileApi.GetFile(task.TypeId)
-	if err != nil {
-		r.failed(task, "文件获取失败： "+err.Error())
 		return
 	}
 	_, err = io.Copy(openFile, io.TeeReader(reader, task))
@@ -191,7 +201,7 @@ func (r *Manager) ShowTask() {
 	sort.Sort(r.Tasks)
 	for k, v := range r.Tasks {
 		fmt.Printf(" %-3d| %-3s | %s | %-7s | %-7s | %s\n", i, v.getStatusName(),
-			v.StatusMsg, humanize.Bytes(uint64(v.FileSize)), humanize.Bytes(v.CompleteSize), v.FileName)
+			v.StatusMsg, humanize.Bytes(uint64(v.FileSize)), humanize.Bytes(v.CompleteSize), v.SaveDir+"/"+v.FileName)
 		if k != r.Tasks.Len()-1 && v.Status != r.Tasks[k+1].Status {
 			i = 0
 			fmt.Printf(strings.Repeat("-", 80) + "\n")
@@ -201,7 +211,7 @@ func (r *Manager) ShowTask() {
 	fmt.Printf(strings.Repeat("-", 80) + "\n")
 END:
 	fmt.Printf("总任务 %d 个，已完成 %d 个, 待处理 %d 个，处理中 %d 个\n",
-		r.Num, r.Num-r.DwloadingNum-r.UploadingNum,
+		len(r.Tasks), r.Num-r.DwloadingNum-r.UploadingNum,
 		int64(len(r.Tasks))-r.Num, r.DwloadingNum+r.UploadingNum)
 }
 
