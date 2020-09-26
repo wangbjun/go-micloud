@@ -49,6 +49,10 @@ func (r *Command) downloadAlbum(albumId, albumName string, page int) error {
 			return fmt.Errorf("创建相册目录失败: %w", err)
 		}
 	}
+	// 最后一页，下载结束
+	if albumFiles == nil && isLastPage == true {
+		return nil
+	}
 	for _, f := range albumFiles {
 		go func() {
 			r.TaskManage.AddDownloadTask(&f, albumName, api.TypeDownloadAlbum)
@@ -56,12 +60,10 @@ func (r *Command) downloadAlbum(albumId, albumName string, page int) error {
 		zlog.PrintInfo(fmt.Sprintf("添加下载任务: %s", albumName+"/"+f.Name))
 		time.Sleep(time.Millisecond * 10)
 	}
-	if isLastPage != true {
-		err := r.downloadAlbum(albumId, albumName, page+1)
-		if err != nil {
-			return fmt.Errorf("相册下载失败: %w", err)
-		}
-		time.Sleep(time.Second)
+	time.Sleep(time.Second * 10)
+	err = r.downloadAlbum(albumId, albumName, page+1)
+	if err != nil {
+		return fmt.Errorf("相册下载失败: %w", err)
 	}
 	return nil
 }

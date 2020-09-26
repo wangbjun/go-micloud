@@ -20,18 +20,18 @@ import (
 const ChunkSize = 4194304
 
 var (
-	ErrorSizeTooBig = errors.New("单个文件不能大于4GB")
+	ErrorSizeTooBig = errors.New("单文件不能大于4GB")
 )
 
 //获取文件
-func (api *Api) GetFile(id string) (io.Reader, error) {
+func (api *Api) GetFile(id string) (io.ReadCloser, error) {
 	result, err := api.get(fmt.Sprintf(GetFiles, id))
 	if err != nil {
 		return nil, err
 	}
 	realUrlStr := gjson.Get(string(result), "data.storage.jsonpUrl").String()
 	if realUrlStr == "" {
-		return nil, errors.New("get fileUrl failed")
+		return nil, fmt.Errorf("获取文件下载url失败：%s", result)
 	}
 	result, err = api.get(realUrlStr)
 	if err != nil {
@@ -138,6 +138,7 @@ func (api *Api) UploadFile(task *Task) (string, error) {
 		if err != nil {
 			return "", err
 		}
+		defer file.Close()
 		var i = 0
 		var commitMetas []map[string]string
 		for k, block := range blockMetas {
@@ -179,6 +180,7 @@ func (api *Api) getFileBlocks(fileInfo os.FileInfo, filePath string) (*[]BlockIn
 	if err != nil {
 		return nil, err
 	}
+	defer file.Close()
 	var i int64 = 1
 	var blockInfos []BlockInfo
 	for b := make([]byte, ChunkSize); i <= int64(num); i++ {

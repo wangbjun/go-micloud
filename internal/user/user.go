@@ -45,8 +45,7 @@ func New() *User {
 			CheckRedirect: func(req *http.Request, via []*http.Request) error {
 				return http.ErrUseLastResponse
 			},
-			Transport: zlog.HttpLoggerTransport,
-			Jar:       jar,
+			Jar: jar,
 		},
 	}
 	go user.autoRenewal()

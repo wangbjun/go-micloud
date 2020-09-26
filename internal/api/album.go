@@ -2,7 +2,6 @@ package api
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/tidwall/gjson"
 	"io"
@@ -32,7 +31,7 @@ func (api *Api) GetAblums() ([]*Album, error) {
 	for _, v := range ablums {
 		switch v.AlbumId {
 		case "1":
-			v.Name = "相册"
+			v.Name = "相机"
 		case "2":
 			v.Name = "截屏"
 		case "1000":
@@ -67,14 +66,14 @@ func (api *Api) GetAblumPhotos(albumId string, page int) ([]File, bool, error) {
 }
 
 //获取文件
-func (api *Api) GetPhoto(id string) (io.Reader, error) {
+func (api *Api) GetPhoto(id string) (io.ReadCloser, error) {
 	result, err := api.get(fmt.Sprintf(GetPhoto, time.Now().UnixNano(), id))
 	if err != nil {
 		return nil, err
 	}
 	realUrlStr := gjson.Get(string(result), "data.url").String()
 	if realUrlStr == "" {
-		return nil, errors.New("get fileUrl failed")
+		return nil, fmt.Errorf("获取相册下载url失败：%s", result)
 	}
 	result, err = api.get(realUrlStr)
 	if err != nil {

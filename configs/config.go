@@ -32,6 +32,7 @@ func Init(path string) error {
 		if err != nil {
 			return fmt.Errorf("打开配置文件失败：%w", err)
 		}
+		defer file.Close()
 		all, err := ioutil.ReadAll(file)
 		if err != nil {
 			return fmt.Errorf("读取配置文件失败：%w", err)
@@ -40,7 +41,6 @@ func Init(path string) error {
 		if err != nil {
 			return fmt.Errorf("解析配置文件失败：%w", err)
 		}
-		file.Close()
 	}
 	conf.WorkDir, _ = os.Getwd()
 	conf.SaveToFile()
@@ -54,6 +54,7 @@ func (r *Config) SaveToFile() {
 		log.Printf("创建配置文件失败: %s", err.Error())
 		return
 	}
+	defer file.Close()
 	r.UpdatedAt = time.Now().Format(utils.YmdHis)
 	data, err := json.MarshalIndent(r, "", "  ")
 	if err != nil {
@@ -64,5 +65,4 @@ func (r *Config) SaveToFile() {
 	if err != nil {
 		log.Printf("保存配置文件失败: %s", err.Error())
 	}
-	file.Close()
 }

@@ -6,6 +6,7 @@ import (
 	"go-micloud/configs"
 	"go-micloud/pkg/zlog"
 	"io"
+	"math/rand"
 	"os"
 	"path"
 	"sort"
@@ -84,8 +85,8 @@ func (r *Manager) Dispatch() {
 		for {
 			ticker := time.NewTicker(time.Second * 5)
 			<-ticker.C
-			zlog.Info(fmt.Sprintf("总任务 %d 个，已完成 %d 个, 待处理 %d 个，处理中 %d 个",
-				r.Num, r.Num-r.DwloadingNum-r.UploadingNum,
+			zlog.Info(fmt.Sprintf("总任务 %d 个，已完成 %d 个, 待处理 %d 个，处理中 %d 个\n",
+				len(r.Tasks), r.Num-r.DwloadingNum-r.UploadingNum,
 				int64(len(r.Tasks))-r.Num, r.DwloadingNum+r.UploadingNum))
 		}
 	}()
@@ -140,24 +141,26 @@ func (r *Manager) download(task *Task) {
 		return
 	}
 	var err error
-	var reader io.Reader
+	var reader io.ReadCloser
 	if task.Type == TypeDownload {
 		reader, err = r.FileApi.GetFile(task.TypeId)
 	} else if task.Type == TypeDownloadAlbum {
 		reader, err = r.FileApi.GetPhoto(task.TypeId)
 	}
 	if err != nil {
-		r.failed(task, "文件获取失败： "+err.Error())
+		go r.failed(task, "文件获取失败： "+err.Error())
 		return
 	}
-	openFile, err := os.Create(filePath)
+	file, err := os.Create(filePath)
 	if err != nil {
-		r.failed(task, "文件创建失败： "+err.Error())
+		go r.failed(task, "文件创建失败： "+err.Error())
 		return
 	}
-	_, err = io.Copy(openFile, io.TeeReader(reader, task))
+	defer file.Close()
+	defer reader.Close()
+	_, err = io.Copy(file, io.TeeReader(reader, task))
 	if err != nil {
-		r.failed(task, "文件写入失败： "+err.Error())
+		go r.failed(task, "文件写入失败： "+err.Error())
 		return
 	}
 	task.Status = Succeeded
@@ -178,10 +181,13 @@ func (r *Manager) upload(task *Task) {
 		if err == ErrorSizeTooBig {
 			zlog.Error(fmt.Sprintf("[ %s ]上传失败: %s", task.FilePath, err))
 		} else {
-			zlog.Error(fmt.Sprintf("[ %s ]上传失败，重试(%d): %s", task.FilePath, task.RetryTimes, err))
-			task.Time = time.Now()
-			task.RetryTimes++
-			r.Uchan <- task
+			go func() {
+				time.Sleep(time.Second * 30)
+				zlog.Error(fmt.Sprintf("[ %s ]上传失败，重试(%d): %s", task.FilePath, task.RetryTimes, err))
+				task.Time = time.Now()
+				task.RetryTimes++
+				r.Uchan <- task
+			}()
 		}
 	} else {
 		zlog.Info(fmt.Sprintf("[ %s ]上传成功", task.FilePath))
@@ -217,10 +223,11 @@ END:
 
 // 失败重试，最多尝试3次
 func (r *Manager) failed(task *Task, msg string) {
-	zlog.Error(fmt.Sprintf("文件 [%s] 下载失败，开始重试，Error: %s", task.FileName, msg))
+	time.Sleep(time.Second * time.Duration(rand.Intn(60)+60))
 	task.Time = time.Now()
 	task.Status = Failed
 	task.StatusMsg = msg
 	task.RetryTimes++
+	zlog.Error(fmt.Sprintf("文件 [%s] 下载失败，开始重试(%d)，Error: %s", task.FileName, task.RetryTimes, msg))
 	r.Dchan <- task
 }
