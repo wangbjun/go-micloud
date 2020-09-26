@@ -25,7 +25,7 @@ var (
 
 //获取文件
 func (api *Api) GetFile(id string) (io.ReadCloser, error) {
-	result, err := api.get(fmt.Sprintf(GetFiles, id))
+	result, err := api.Get(fmt.Sprintf(GetFiles, id))
 	if err != nil {
 		return nil, err
 	}
@@ -33,7 +33,7 @@ func (api *Api) GetFile(id string) (io.ReadCloser, error) {
 	if realUrlStr == "" {
 		return nil, fmt.Errorf("获取文件下载url失败：%s", result)
 	}
-	result, err = api.get(realUrlStr)
+	result, err = api.Get(realUrlStr)
 	if err != nil {
 		return nil, err
 	}
@@ -98,24 +98,24 @@ func (api *Api) UploadFile(task *Task) (string, error) {
 	data, _ := json.Marshal(uploadJson)
 	//创建分片
 	task.StatusMsg = "创建文件分片"
-	resp, err := api.postForm(CreateFile, url.Values{
+	resp, err := api.PostForm(CreateFile, url.Values{
 		"data":         []string{string(data)},
 		"serviceToken": []string{api.User.ServiceToken},
 	})
 	if err != nil {
 		return "", err
 	}
-	if result := gjson.Get(string(*resp), "result").String(); result != "ok" {
-		zlog.Error("创建文件分片失败：" + string(*resp))
+	if result := gjson.Get(string(resp), "result").String(); result != "ok" {
+		zlog.Error("创建文件分片失败：" + string(resp))
 		return "", errors.New("创建文件分片失败")
 	}
-	isExisted := gjson.Get(string(*resp), "data.storage.exists").Bool()
+	isExisted := gjson.Get(string(resp), "data.storage.exists").Bool()
 	//云盘已有此文件
 	if isExisted {
 		data := UploadJson{Content: UploadContent{
 			Name: fileName,
 			Storage: UploadExistedStorage{
-				UploadId: gjson.Get(string(*resp), "data.storage.uploadId").String(),
+				UploadId: gjson.Get(string(resp), "data.storage.uploadId").String(),
 				Exists:   true,
 			},
 		}}
@@ -123,7 +123,7 @@ func (api *Api) UploadFile(task *Task) (string, error) {
 		return api.createFile(task.TypeId, data)
 	} else {
 		//云盘不存在该文件
-		kss := gjson.Get(string(*resp), "data.storage.kss")
+		kss := gjson.Get(string(resp), "data.storage.kss")
 		var (
 			nodeUrls   = kss.Get("node_urls").Array()
 			fileMeta   = kss.Get("file_meta").String()
@@ -164,7 +164,7 @@ func (api *Api) UploadFile(task *Task) (string, error) {
 					FileMeta:        kss.Get("file_meta").String(),
 					CommitMetas:     commitMetas,
 				},
-				UploadId: gjson.Get(string(*resp), "data.storage.uploadId").String(),
+				UploadId: gjson.Get(string(resp), "data.storage.uploadId").String(),
 				Exists:   false,
 			},
 		}}
@@ -262,12 +262,12 @@ func (api *Api) createFile(parentId string, data interface{}) (string, error) {
 	request.Header.Set("Origin", "https://i.mi.com")
 	request.Header.Set("Referer", "https://i.mi.com/drive")
 	request.Header.Set("Content-Type", "application/x-www-form-urlencoded")
-	response, err := api.User.HttpClient.Do(request)
+	resp, err := api.User.HttpClient.Do(request)
 	if err != nil {
 		return "", err
 	}
-	defer response.Body.Close()
-	readAll, err := ioutil.ReadAll(response.Body)
+	defer resp.Body.Close()
+	readAll, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return "", err
 	}
@@ -282,19 +282,15 @@ func (api *Api) createFile(parentId string, data interface{}) (string, error) {
 
 //获取文件公开下载链接
 func (api *Api) GetFileDownLoadUrl(id string) (string, error) {
-	resp, err := api.User.HttpClient.Get(fmt.Sprintf(GetFiles, id))
+	resp, err := api.Get(fmt.Sprintf(GetFiles, id))
 	if err != nil {
 		return "", err
 	}
-	all, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return "", err
-	}
-	realUrlStr := gjson.Get(string(all), "data.storage.jsonpUrl").String()
+	realUrlStr := gjson.Get(string(resp), "data.storage.jsonpUrl").String()
 	if realUrlStr == "" {
-		return "", errors.New("get fileUrl failed")
+		return "", errors.New("获取下载分享链接失败")
 	}
-	result, err := api.get(realUrlStr)
+	result, err := api.Get(realUrlStr)
 	if err != nil {
 		return "", err
 	}
@@ -304,7 +300,7 @@ func (api *Api) GetFileDownLoadUrl(id string) (string, error) {
 
 // 获取目录下的文件
 func (api *Api) GetFolder(id string) ([]*File, error) {
-	result, err := api.get(fmt.Sprintf(GetFolders, id))
+	result, err := api.Get(fmt.Sprintf(GetFolders, id))
 	if err != nil {
 		return nil, err
 	}
@@ -321,7 +317,7 @@ func (api *Api) GetFolder(id string) ([]*File, error) {
 }
 
 func (api *Api) CreateFolder(name, parentId string) (string, error) {
-	resp, err := api.postForm(CreateFolder, url.Values{
+	resp, err := api.PostForm(CreateFolder, url.Values{
 		"name":         []string{name},
 		"parentId":     []string{parentId},
 		"serviceToken": []string{api.User.ServiceToken},
@@ -329,8 +325,8 @@ func (api *Api) CreateFolder(name, parentId string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if result := gjson.Get(string(*resp), "result").String(); result == "ok" {
-		return gjson.Get(string(*resp), "data.id").String(), nil
+	if result := gjson.Get(string(resp), "result").String(); result == "ok" {
+		return gjson.Get(string(resp), "data.id").String(), nil
 	} else {
 		return "", errors.New("创建目录失败")
 	}
@@ -342,7 +338,7 @@ func (api *Api) DeleteFile(id, fType string) error {
 		Type: fType,
 	}}
 	content, _ := json.Marshal(record)
-	resp, err := api.postForm(DeleteFiles, url.Values{
+	resp, err := api.PostForm(DeleteFiles, url.Values{
 		"operateType":    []string{"DELETE"},
 		"operateRecords": []string{string(content)},
 		"serviceToken":   []string{api.User.ServiceToken},
@@ -350,7 +346,7 @@ func (api *Api) DeleteFile(id, fType string) error {
 	if err != nil {
 		return err
 	}
-	if result := gjson.Get(string(*resp), "result").String(); result == "ok" {
+	if result := gjson.Get(string(resp), "result").String(); result == "ok" {
 		return nil
 	} else {
 		return errors.New("删除失败")

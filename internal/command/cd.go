@@ -9,10 +9,10 @@ import (
 )
 
 type Command struct {
-	FileApi    *api.Api
-	Folder     *api.Folder
-	TaskManage *api.Manager
-	Liner      *line.Liner
+	Request     *api.Api
+	Folder      *api.Folder
+	TaskManager *api.Manager
+	Liner       *line.Liner
 }
 
 func (r *Command) Cd() *cli.Command {
@@ -28,7 +28,7 @@ func (r *Command) Cd() *cli.Command {
 			if err != nil {
 				return err
 			}
-			files, err := r.FileApi.GetFolder(r.Folder.Cursor.Id)
+			files, err := r.Request.GetFolder(r.Folder.Cursor.Id)
 			if err != nil {
 				return err
 			}
@@ -42,7 +42,7 @@ func (r *Command) Cd() *cli.Command {
 
 // 初始化根目录
 func (r *Command) InitRoot() error {
-	files, err := r.FileApi.GetFolder("0")
+	files, err := r.Request.GetFolder("0")
 	if err != nil {
 		zlog.PrintError(err.Error())
 		return err

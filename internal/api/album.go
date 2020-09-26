@@ -12,14 +12,14 @@ import (
 
 type Album struct {
 	AlbumId        string `json:"albumId"`
+	Name           string `json:"name"`
 	LastUpdateTime int64  `json:"lastUpdateTime"`
 	MediaCount     int    `json:"mediaCount"`
-	Name           string `json:"name"`
 }
 
 // 获取相册列表
 func (api *Api) GetAblums() ([]*Album, error) {
-	result, err := api.get(fmt.Sprintf(GetAlbums, time.Now().UnixNano()))
+	result, err := api.Get(fmt.Sprintf(GetAlbums, time.Now().UnixNano()))
 	if err != nil {
 		return nil, err
 	}
@@ -43,7 +43,7 @@ func (api *Api) GetAblums() ([]*Album, error) {
 
 // 获取相册列表
 func (api *Api) GetAblumPhotos(albumId string, page int) ([]File, bool, error) {
-	result, err := api.get(fmt.Sprintf(GetPhotos, time.Now().UnixNano(), page, albumId))
+	result, err := api.Get(fmt.Sprintf(GetPhotos, time.Now().UnixNano(), page, albumId))
 	if err != nil {
 		return nil, false, err
 	}
@@ -67,7 +67,7 @@ func (api *Api) GetAblumPhotos(albumId string, page int) ([]File, bool, error) {
 
 //获取文件
 func (api *Api) GetPhoto(id string) (io.ReadCloser, error) {
-	result, err := api.get(fmt.Sprintf(GetPhoto, time.Now().UnixNano(), id))
+	result, err := api.Get(fmt.Sprintf(GetPhoto, time.Now().UnixNano(), id))
 	if err != nil {
 		return nil, err
 	}
@@ -75,7 +75,7 @@ func (api *Api) GetPhoto(id string) (io.ReadCloser, error) {
 	if realUrlStr == "" {
 		return nil, fmt.Errorf("获取相册下载url失败：%s", result)
 	}
-	result, err = api.get(realUrlStr)
+	result, err = api.Get(realUrlStr)
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +92,7 @@ func (api *Api) GetPhoto(id string) (io.ReadCloser, error) {
 // 获取视频相册
 func (api *Api) GetVideo() (*Album, error) {
 	var ablum *Album
-	result, err := api.get(fmt.Sprintf(GetVideo, time.Now().UnixNano()))
+	result, err := api.Get(fmt.Sprintf(GetVideo, time.Now().UnixNano()))
 	if err != nil {
 		return nil, err
 	}

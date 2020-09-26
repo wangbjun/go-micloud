@@ -9,7 +9,7 @@ func (r *Command) List() *cli.Command {
 		Name:  "ls",
 		Usage: "列表当前目录所有文件和文件夹",
 		Action: func(ctx *cli.Context) error {
-			files, err := r.FileApi.GetFolder(r.Folder.Cursor.Id)
+			files, err := r.Request.GetFolder(r.Folder.Cursor.Id)
 			if err != nil {
 				return err
 			}

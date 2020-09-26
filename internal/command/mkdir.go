@@ -16,7 +16,7 @@ func (r *Command) MkDir() *cli.Command {
 			if fileName == "" {
 				return errors.New("缺少参数")
 			}
-			_, err := r.FileApi.CreateFolder(fileName, r.Folder.Cursor.Id)
+			_, err := r.Request.CreateFolder(fileName, r.Folder.Cursor.Id)
 			if err != nil {
 				zlog.PrintError("创建目录失败：" + err.Error())
 				return err

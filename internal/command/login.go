@@ -10,7 +10,7 @@ func (r *Command) Login() *cli.Command {
 		Name:  "login",
 		Usage: "登录小米云服务账号",
 		Action: func(ctx *cli.Context) error {
-			err := r.FileApi.User.Login(true)
+			err := r.Request.User.Login(true)
 			if err != nil {
 				zlog.PrintError("登录失败: " + err.Error())
 				return nil

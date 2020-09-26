@@ -35,10 +35,10 @@ func main() {
 	}
 	zlog.PrintInfo("登录成功")
 	cmd := command.Command{
-		FileApi:    httpApi,
-		Folder:     api.NewFolder(),
-		TaskManage: api.NewManager(httpApi),
-		Liner:      line.NewLiner(),
+		Request:     httpApi,
+		Folder:      api.NewFolder(),
+		TaskManager: api.NewManager(httpApi),
+		Liner:       line.NewLiner(),
 	}
 	if err := cmd.InitRoot(); err != nil {
 		zlog.PrintError("初始化根目录失败： " + err.Error())

@@ -26,7 +26,7 @@ func (r *Command) Delete() *cli.Command {
 			if fileInfo == nil {
 				return errors.New("当前目录不存在该文件")
 			}
-			err := r.FileApi.DeleteFile(fileInfo.Id, fileInfo.Type)
+			err := r.Request.DeleteFile(fileInfo.Id, fileInfo.Type)
 			if err != nil {
 				return err
 			}

@@ -9,7 +9,7 @@ func (r *Command) Jobs() *cli.Command {
 		Name:  "jobs",
 		Usage: "展示后台当前所有下载和上传任务",
 		Action: func(ctx *cli.Context) error {
-			r.TaskManage.ShowTask()
+			r.TaskManager.ShowTask()
 			return nil
 		},
 	}

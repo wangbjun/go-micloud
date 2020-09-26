@@ -34,13 +34,13 @@ func New(user *user.User) *Api {
 	return &api
 }
 
-func (api *Api) get(url string) ([]byte, error) {
+func (api *Api) Get(url string) ([]byte, error) {
 	result, err := api.User.HttpClient.Get(url)
 	if err != nil {
 		return nil, err
 	}
 	if result.StatusCode == http.StatusFound {
-		return api.get(result.Header.Get("Location"))
+		return api.Get(result.Header.Get("Location"))
 	}
 	if result.StatusCode == http.StatusUnauthorized {
 		return nil, errors.New("登录授权失败")
@@ -56,7 +56,7 @@ func (api *Api) get(url string) ([]byte, error) {
 	return body, nil
 }
 
-func (api *Api) postForm(url string, values url.Values) (*[]byte, error) {
+func (api *Api) PostForm(url string, values url.Values) ([]byte, error) {
 	result, err := api.User.HttpClient.PostForm(url, values)
 	if err != nil {
 		return nil, err
@@ -72,5 +72,5 @@ func (api *Api) postForm(url string, values url.Values) (*[]byte, error) {
 	if gjson.Get(string(body), "R").Int() == 401 {
 		return nil, errors.New("登录授权失败")
 	}
-	return &body, nil
+	return body, nil
 }

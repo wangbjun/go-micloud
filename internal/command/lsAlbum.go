@@ -13,7 +13,7 @@ func (r *Command) ListAlbum() *cli.Command {
 		Name:  "lsAlbum",
 		Usage: "列出所有相册",
 		Action: func(ctx *cli.Context) error {
-			ablums, err := r.FileApi.GetAblums()
+			ablums, err := r.Request.GetAblums()
 			if err != nil {
 				return err
 			}

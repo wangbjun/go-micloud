@@ -77,37 +77,35 @@ func (u *User) autoRenewal() {
 
 // 登录
 func (u *User) Login(isInput bool) error {
-	err := u.autoLogin()
-	if err == nil {
-		zlog.Info("[login] autoLogin success")
-		return nil
+	if isInput == false {
+		err := u.autoLogin()
+		if err == nil {
+			return nil
+		}
+		zlog.Info("[login] autoLogin failed: " + err.Error())
 	}
-	zlog.Info("[login] autoLogin failed，begin login")
-	zlog.Info(err.Error())
 	username, password := u.getConfNamePwd()
 	if username == "" || password == "" || isInput {
 		username, password = u.getInputNamePwd()
 	}
-	zlog.Info("[login] serviceLogin")
-	err = u.serviceLogin()
+	err := u.serviceLogin()
 	if err != nil {
-		return err
+		return fmt.Errorf("[login] serviceLogin failed: %w", err)
 	}
 	time.Sleep(time.Millisecond * 500)
-	zlog.Info(fmt.Sprintf("[login] serviceLoginAuth: username = %s", username))
 	location, err := u.serviceLoginAuth(username, password)
 	if err != nil {
-		return err
+		return fmt.Errorf("[login] serviceLoginAuth failed: %w", err)
 	}
 	time.Sleep(time.Millisecond * 500)
 	zlog.Info("[login] passServiceLogin: " + location)
 	err = u.passServiceLogin(location)
 	if err != nil {
-		return err
+		return fmt.Errorf("[login] passServiceLogin failed: %w", err)
 	}
 	parseUrl, err := url.Parse(serviceLogin)
 	if err != nil {
-		return err
+		return fmt.Errorf("[login] serviceLogin parse failed: %w", err)
 	}
 	cookies := u.HttpClient.Jar.Cookies(parseUrl)
 	for _, v := range cookies {
@@ -121,7 +119,7 @@ func (u *User) Login(isInput bool) error {
 	zlog.Info("[login] checkPhoneCode: " + location)
 	location, err = u.checkPhoneCode()
 	if err != nil {
-		return err
+		return fmt.Errorf("[login] checkPhoneCode failed: %w", err)
 	}
 	if location == "" {
 		goto LoginSuccess
@@ -133,22 +131,19 @@ func (u *User) Login(isInput bool) error {
 		if err == ErrorNoSMS {
 			goto LoginSuccess
 		}
-		return err
+		return fmt.Errorf("[login] sendPhoneCode failed: %w", err)
 	}
-	zlog.Info("[login] verifyPhoneCode")
 	err = u.verifyPhoneCode(utils.GetInput("手机验证码"))
 	if err != nil {
-		return err
+		return fmt.Errorf("[login] verifyPhoneCode failed: %w", err)
 	}
-	zlog.Info("[login] checkPhoneCode")
 	location, err = u.checkPhoneCode()
 	if err != nil {
-		return err
+		return fmt.Errorf("[login] checkPhoneCode failed: %w", err)
 	}
 	if location != "" {
 		return errors.New("登录失败，请重试！")
 	}
-
 LoginSuccess:
 	zlog.Info("[login] login success")
 	u.IsLogin = true

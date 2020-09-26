@@ -39,7 +39,7 @@ func (r *Command) upload(filePath, parentId string) error {
 		return errors.New("文件不存在")
 	}
 	if fileInfo.IsDir() {
-		folderId, err := r.FileApi.CreateFolder(path.Base(filePath), parentId)
+		folderId, err := r.Request.CreateFolder(path.Base(filePath), parentId)
 		if err != nil {
 			return err
 		}
@@ -55,7 +55,7 @@ func (r *Command) upload(filePath, parentId string) error {
 		}
 	} else {
 		go func() {
-			r.TaskManage.AddUploadTask(fileInfo.Size(), filePath, parentId)
+			r.TaskManager.AddUploadTask(fileInfo.Size(), filePath, parentId)
 		}()
 		zlog.PrintInfo(fmt.Sprintf("添加上传任务: %s", filePath))
 		time.Sleep(time.Millisecond * 10)

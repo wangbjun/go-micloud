@@ -3,7 +3,6 @@ package api
 import (
 	"fmt"
 	"github.com/dustin/go-humanize"
-	"go-micloud/configs"
 	"go-micloud/pkg/zlog"
 	"io"
 	"math/rand"
@@ -48,17 +47,17 @@ func NewManager(fileApi *Api) *Manager {
 		Dchan:   make(chan *Task, 0),
 		FileApi: fileApi,
 	}
-	go tm.Dispatch()
+	go tm.dispatch()
 	return tm
 }
 
-func (r *Manager) AddDownloadTask(file *File, dir string, tp int) {
+func (r *Manager) AddDownloadTask(file *File, saveDir string, tp int) {
 	task := &Task{
 		Type:      tp,
 		TypeId:    file.Id,
 		FileName:  file.Name,
 		FileSize:  file.Size,
-		SaveDir:   dir,
+		SaveDir:   saveDir,
 		Time:      time.Now(),
 		StatusMsg: "等待下载",
 	}
@@ -80,7 +79,7 @@ func (r *Manager) AddUploadTask(fileSize int64, filePath, parentId string) {
 	r.Uchan <- task
 }
 
-func (r *Manager) Dispatch() {
+func (r *Manager) dispatch() {
 	go func() {
 		for {
 			ticker := time.NewTicker(time.Second * 5)
@@ -134,7 +133,7 @@ func (r *Manager) download(task *Task) {
 		atomic.AddInt64(&r.DwloadingNum, -1)
 	}()
 	zlog.Info(fmt.Sprintf("开始处理下载任务: %s", task.FileName))
-	filePath := configs.Conf.WorkDir + "/" + task.SaveDir + "/" + task.FileName
+	filePath := task.SaveDir + "/" + task.FileName
 	if fs, err := os.Stat(filePath); err == nil && fs.Size() == task.FileSize {
 		task.LogStatus("文件已存在")
 		task.Status = Succeeded
