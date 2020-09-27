@@ -43,6 +43,7 @@ func Init(path string) error {
 		}
 	}
 	conf.WorkDir, _ = os.Getwd()
+	conf.LogFile = "/tmp/micloud.log"
 	conf.SaveToFile()
 	Conf = conf
 	return nil

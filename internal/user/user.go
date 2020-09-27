@@ -321,7 +321,7 @@ func (u *User) serviceLoginAuth(userName, password string) (string, error) {
 	all = []byte(strings.Trim(string(all), "&&&START&&&"))
 	location := gjson.Get(string(all), "location").String()
 	if location == "" {
-		return "", errors.New("账户或密码错误")
+		return "", fmt.Errorf("账户或密码错误: %s", all)
 	}
 	return location, nil
 }
@@ -445,9 +445,8 @@ func (u *User) verifyPhoneCode(code string) error {
 
 	location := gjson.Get(string(all), "location").String()
 	if location == "" {
-		return errors.New("验证码错误")
+		return fmt.Errorf("验证码错误: %s", all)
 	}
-
 	resp, err = u.HttpClient.Get(xiaomi + location)
 	if err != nil {
 		return err
