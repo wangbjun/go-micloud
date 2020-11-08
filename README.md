@@ -29,6 +29,23 @@ OPTIONS:
    --version, -v  print the version (default: false)
 ```
 
+## 安装
+```shell
+wget -c https://github.com/wangbjun/go-micloud/releases/download/1.3/micloud_x86_linux
+#国内用户镜像加速替换下面链接中的一个  
+#https://github.wuyanzheshui.workers.dev/wangbjun/go-micloud/releases/download/1.3/micloud_x86_linux
+#https://download.fastgit.org/wangbjun/go-micloud/releases/download/1.3/micloud_x86_linux
+#https://github.91chifun.workers.dev//https://github.com/wangbjun/go-micloud/releases/download/1.3/micloud_x86_linux
+# 更改一个你喜欢的名字，我用的是mi,你也可以用其他名字，比如华为之类
+sudo mv micloud_x86_linux /usr/local/bin/mi
+# 更改权限
+sudo chmod u+x /usr/local/bin/mi
+# 输入命令确认
+mi
+# 如果成功会提示你输入账号和密码
+```
+
+
 ## 主要功能
 - 登录采用模拟小米云服务Web端的登录逻辑，首次登录需输入账号、密码和手机验证码，一次登录，终身有效
 - 账号密码本地会暂存，密码已加密，默认位于用户目录下 .micloud.json，长时间不登录无需再输入账号密码，如需完全退出账号，可以删除该配置文件
